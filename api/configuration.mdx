@@ -1,0 +1,320 @@
+---
+title: "Configuration API"
+description: "ConnectionConfig, ConnectionConfigType, and H2oSonarConfig for managing connections and runtime settings."
+---
+
+## Overview
+
+The `h2o_sonar.config` module manages all runtime configuration for H2O Sonar, including connections to external LLM/RAG services, H2O-3 server settings, and global library behavior. Configuration is loaded from a TOML file, overridden by environment variables, and can be modified in-memory at runtime.
+
+**Configuration priority (lowest to highest):**
+
+1. Default values
+2. Configuration file (`config.toml`)
+3. Environment variables
+4. Command-line arguments
+5. Runtime configuration items set via `add_config_item()`
+
+---
+
+## `ConnectionConfig`
+
+A generic connection configuration for connecting H2O Sonar to external H2O.ai and third-party products.
+
+```python
+from h2o_sonar.config import ConnectionConfig, ConnectionConfigType, TokenUseType
+
+conn = ConnectionConfig(
+    connection_type=ConnectionConfigType.H2O_GPT_E.name,
+    name="Production h2oGPTe",
+    description="h2oGPTe RAG instance for production evaluations",
+    server_url="https://gpte.example.com",
+    token="my-api-token",
+    token_use_type=TokenUseType.API_KEY.name,
+)
+```
+
+### Fields
+
+<ResponseField name="key" type="str" required>
+  Unique identifier for the connection. Auto-generated as a UUID4 when not provided.
+</ResponseField>
+
+<ResponseField name="connection_type" type="str" required>
+  Connection type identifier. Use a `ConnectionConfigType` enum name (e.g. `"H2O_GPT_E"`, `"OPENAI_CHAT"`). See the [ConnectionConfigType table](#connectionconfigtype-enum) below.
+</ResponseField>
+
+<ResponseField name="name" type="str" required>
+  Human-readable name for the connection.
+</ResponseField>
+
+<ResponseField name="description" type="str">
+  Optional human-readable description.
+</ResponseField>
+
+<ResponseField name="server_url" type="str">
+  Host URL for the service. Examples:
+  - `https://gpte.example.com` (h2oGPTe)
+  - `https://host:12345/` (standalone Driverless AI)
+</ResponseField>
+
+<ResponseField name="server_id" type="str">
+  Server identifier used when the server has no fixed URL (e.g. a Driverless AI engine name in H2O AIEM).
+</ResponseField>
+
+<ResponseField name="auth_server_url" type="str">
+  Authentication server URL (Keycloak endpoint).
+</ResponseField>
+
+<ResponseField name="environment_url" type="str">
+  Environment URL for H2O token provider authentication (e.g. `https://cloud.h2o.ai/`).
+</ResponseField>
+
+<ResponseField name="realm_name" type="str">
+  Authentication realm or workspace name.
+</ResponseField>
+
+<ResponseField name="client_id" type="str">
+  OAuth2 client ID.
+</ResponseField>
+
+<ResponseField name="token" type="str | dict">
+  API token, refresh token, access token, or client secret. When loaded from a persisted config file, sensitive values are stored as an encrypted dict: `{"encrypted": "<ciphertext>"}`.
+</ResponseField>
+
+<ResponseField name="token_use_type" type="str">
+  How the token is used. One of the `TokenUseType` enum names: `"API_KEY"`, `"ACCESS_TOKEN"`, `"REFRESH_TOKEN"`, or `"SECRET"`.
+</ResponseField>
+
+<ResponseField name="username" type="str">
+  Username for password-based authentication.
+</ResponseField>
+
+<ResponseField name="password" type="str | dict">
+  Password for authentication. Encrypted at rest in the same way as `token`.
+</ResponseField>
+
+<ResponseField name="extra_params" type="dict">
+  Arbitrary additional key/value parameters for provider-specific settings.
+</ResponseField>
+
+### `ConnectionConfig.from_dict()`
+
+Construct a `ConnectionConfig` from a dictionary (e.g. parsed from JSON).
+
+```python
+conn = ConnectionConfig.from_dict(
+    config_dict={
+        "key": "096ca3c2-4715-11ee-9e2f-10828613f8ad",
+        "connection_type": "H2O_GPT_E",
+        "name": "My h2oGPTe",
+        "description": "Production instance",
+        "server_url": "https://gpte.example.com",
+        "token": "my-api-token",
+        "token_use_type": "API_KEY",
+    },
+    decrypt=False,
+)
+```
+
+<ParamField body="config_dict" type="dict" required>
+  Dictionary with connection configuration keys. See the JSON example above.
+</ParamField>
+
+<ParamField body="decrypt" type="boolean" default="true">
+  When `True`, decrypts encrypted fields in `config_dict` using `encryption_key`.
+</ParamField>
+
+<ParamField body="encryption_key" type="str" default='""'>
+  Encryption key for decrypting `token` and `password` fields stored as `{"encrypted": "..."}`.
+</ParamField>
+
+---
+
+## `ConnectionConfigType` enum
+
+Predefined connection types recognized by H2O Sonar.
+
+| Enum value | Description |
+|---|---|
+| `H2O_GPT_E` | H2O GPT Enterprise (h2oGPTe) RAG platform |
+| `H2O_GPT` | H2O GPT (open-source) |
+| `H2O_LLM_OPS` | H2O LLMOps managed LLM platform |
+| `OLLAMA` | Ollama local model server |
+| `OPENAI_RAG` | OpenAI Assistant API with retrieval |
+| `OPENAI_CHAT` | OpenAI Chat Completions API |
+| `AZURE_OPENAI_CHAT` | Microsoft Azure hosted OpenAI Chat API |
+| `ANTHROPIC_CHAT` | Anthropic Claude Chat API |
+| `AMAZON_BEDROCK` | Amazon Bedrock managed LLM service |
+| `HF_SPACES` | HuggingFace Spaces API |
+| `DRIVERLESS_AI` | Remote or local Driverless AI installation |
+| `DRIVERLESS_AI_STEAM` | Driverless AI in H2O Enterprise Steam |
+| `DRIVERLESS_AI_AIEM` | Driverless AI in H2O AI Engine Manager |
+| `H2O_3` | H2O-3 open-source ML platform |
+
+<Note>
+  Use `ConnectionConfigType.<VALUE>.name` (a string) when constructing a `ConnectionConfig`. The enum values map directly to the `connection_type` field.
+</Note>
+
+---
+
+## `H2oSonarConfig`
+
+Global H2O Sonar configuration object. A singleton instance is available as `h2o_sonar.config.config`.
+
+### Fields
+
+<ResponseField name="connections" type="list[ConnectionConfig]">
+  List of registered connection configurations. Use `add_connection()` or `add_config_item()` to add entries.
+</ResponseField>
+
+<ResponseField name="h2o_host" type="str" default='"localhost"'>
+  Hostname of the H2O-3 server used by explainers that require it.
+</ResponseField>
+
+<ResponseField name="h2o_port" type="integer" default="12349">
+  Port of the H2O-3 server.
+</ResponseField>
+
+<ResponseField name="h2o_auto_start" type="boolean" default="true">
+  When `True`, H2O-3 is started automatically when an interpretation begins.
+</ResponseField>
+
+<ResponseField name="h2o_min_mem_size" type="str" default='"2G"'>
+  Minimum memory allocation for a managed H2O-3 server instance (e.g. `"2G"`, `"512M"`).
+</ResponseField>
+
+<ResponseField name="h2o_max_mem_size" type="str" default='"4G"'>
+  Maximum memory allocation for a managed H2O-3 server instance.
+</ResponseField>
+
+### Loading and saving config
+
+```python
+from h2o_sonar.config import H2oSonarConfig
+
+cfg = H2oSonarConfig()
+cfg.load_and_override(
+    config_path="~/.h2o_sonar/config.toml",
+    encryption_key="my-encryption-key",
+)
+
+# Access connections
+for conn in cfg.connections:
+    print(conn.key, conn.name)
+
+# Save back to disk
+cfg.save("~/.h2o_sonar/config.toml", encryption_key="my-encryption-key")
+```
+
+### Using the global singleton
+
+```python
+from h2o_sonar import config
+
+# Read current in-memory config
+connection = config.config.get_connection("my-connection-key")
+
+# Add a connection to the in-memory singleton
+config.config.add_connection(
+    config.ConnectionConfig(
+        connection_type=config.ConnectionConfigType.OPENAI_CHAT.name,
+        name="OpenAI GPT-4",
+        description="OpenAI Chat API",
+        server_url="https://api.openai.com",
+        token="sk-...",
+        token_use_type=config.TokenUseType.API_KEY.name,
+    )
+)
+```
+
+---
+
+## Complete JSON config example
+
+The config file uses TOML format. Connections can store tokens in plain text (development only) or encrypted.
+
+```json
+{
+  "connections": [
+    {
+      "key": "096ca3c2-4715-11ee-9e2f-10828613f8ad",
+      "connection_type": "H2O_GPT_E",
+      "name": "Production h2oGPTe",
+      "description": "h2oGPTe RAG instance",
+      "server_url": "https://gpte.example.com",
+      "server_id": "",
+      "auth_server_url": "",
+      "environment_url": "https://cloud.h2o.ai/",
+      "realm_name": "",
+      "client_id": "",
+      "token": {
+        "encrypted": "gAAAAABkTfy18iis3ya8nitGi...URMxE14aJJk="
+      },
+      "token_use_type": "API_KEY",
+      "username": "",
+      "password": "",
+      "extra_params": {}
+    },
+    {
+      "key": "1a2b3c4d-0000-0000-0000-000000000001",
+      "connection_type": "OPENAI_CHAT",
+      "name": "OpenAI GPT-4o",
+      "description": "OpenAI Chat Completions for evaluation judge",
+      "server_url": "https://api.openai.com",
+      "token": "sk-...",
+      "token_use_type": "API_KEY",
+      "extra_params": {
+        "model": "gpt-4o"
+      }
+    }
+  ],
+  "h2o_host": "localhost",
+  "h2o_port": 12349,
+  "h2o_auto_start": true,
+  "h2o_min_mem_size": "2G",
+  "h2o_max_mem_size": "4G"
+}
+```
+
+<Warning>
+  Never commit plaintext tokens to source control. Use the `encryption_key` parameter (or the `H2O_SONAR_ENCRYPTION_KEY` environment variable) to encrypt sensitive fields before saving to disk.
+</Warning>
+
+### Encrypting a config file
+
+```python
+from h2o_sonar import interpret
+
+# Add a connection (plain text) and save it encrypted
+interpret.add_config_item(
+    config_type="CONNECTION",
+    config_value={
+        "connection_type": "H2O_GPT_E",
+        "name": "My h2oGPTe",
+        "description": "",
+        "server_url": "https://gpte.example.com",
+        "token": "plain-text-token",
+        "token_use_type": "API_KEY",
+    },
+    h2o_sonar_config_path="~/.h2o_sonar/config.toml",
+    encryption_key="my-secret-key",
+)
+
+# Read it back (decrypted)
+cfg = interpret.get_config(
+    h2o_sonar_config_path="~/.h2o_sonar/config.toml",
+    encryption_key="my-secret-key",
+)
+print(cfg["connections"][0]["token"])  # plain-text-token
+```
+
+### Environment variable
+
+Set the encryption key via the environment to avoid passing it in code:
+
+```bash
+export H2O_SONAR_ENCRYPTION_KEY="my-secret-key"
+```
+
+H2O Sonar reads this variable automatically when `encryption_key=""` (the default).

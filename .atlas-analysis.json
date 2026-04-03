@@ -1,0 +1,115 @@
+{
+  "projectType": "sdk-library",
+  "projectName": "H2O Sonar",
+  "projectDescription": "A Python library for AI model risk management providing 18 predictive AI explainers and 44 generative AI evaluators for responsible, fair, and trustworthy machine learning.",
+  "theme": "palm",
+  "primaryColor": "#fae204",
+  "lightColor": "#84740c",
+  "darkColor": "#303026",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart-predictive",
+              "quickstart-generative"
+            ]
+          },
+          {
+            "group": "Predictive AI",
+            "pages": [
+              "predictive/explainers",
+              "predictive/running-interpretations",
+              "predictive/bring-your-own-explainer",
+              "predictive/supported-models"
+            ]
+          },
+          {
+            "group": "Generative AI",
+            "pages": [
+              "generative/evaluators",
+              "generative/running-evaluations",
+              "generative/host-types",
+              "generative/evals-library",
+              "generative/bring-your-own-evaluator"
+            ]
+          },
+          {
+            "group": "Advanced Usage",
+            "pages": [
+              "advanced/auto-model-selection",
+              "advanced/configuration",
+              "advanced/perturbations",
+              "advanced/cli-reference"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Core API",
+            "pages": [
+              "api/interpret",
+              "api/evaluate",
+              "api/configuration"
+            ]
+          },
+          {
+            "group": "Explainers",
+            "pages": [
+              "api/explainers/feature-importance",
+              "api/explainers/feature-behavior",
+              "api/explainers/fairness",
+              "api/explainers/model-validity"
+            ]
+          },
+          {
+            "group": "Evaluators",
+            "pages": [
+              "api/evaluators/generation",
+              "api/evaluators/retrieval",
+              "api/evaluators/privacy-fairness",
+              "api/evaluators/summarization"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "18 predictive AI explainers covering feature importance, fairness, model debugging and validity testing",
+    "44 generative AI evaluators for LLM, RAG, and AI agent assessment",
+    "1,000,000+ curated evaluation prompts in 700+ test suites",
+    "Automatic best model selection with multi-objective optimization",
+    "Support for major LLM hosts: OpenAI, Anthropic, Amazon Bedrock, h2oGPTe, Azure OpenAI, ollama",
+    "Bring Your Own Explainer/Evaluator (BYOE) recipe system for custom extensions",
+    "HTML, JSON, and PDF report generation",
+    "CLI interface for running interpretations and managing configurations",
+    "Disparate Impact Analysis and fairness bias detection",
+    "Integration with H2O Eval Studio and H2O Driverless AI"
+  ],
+  "publicApiSurface": [
+    "interpret.run_interpretation(dataset, model, target_col, explainers, ...)",
+    "interpret.list_explainers(experiment_types, explanation_scopes, keywords, ...)",
+    "interpret.register_explainer(explainer_class, explainer_id, ...)",
+    "interpret.describe_explainer(explainer, portable)",
+    "interpret.upload_interpretation(interpretation_result, connection, ...)",
+    "evaluate.run_evaluation(dataset, models, evaluators, ...)",
+    "evaluate.list_evaluators(keywords, evaluator_filter, ...)",
+    "evaluate.compare_evaluations(baseline_evaluation, current_evaluation, ...)",
+    "evaluate.perturb(content, perturbators, in_place, ...)",
+    "evaluate.list_perturbators(keywords)",
+    "interpret.add_config_item(config_type, config_value, ...)",
+    "interpret.get_config(h2o_sonar_config_path, encryption_key)",
+    "h2o-sonar run interpretation --dataset ... --model ... --target-col ...",
+    "h2o-sonar list explainers",
+    "h2o-sonar describe explainer --explainer <ID>"
+  ]
+}

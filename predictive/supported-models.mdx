@@ -1,0 +1,214 @@
+---
+title: "Supported models"
+description: "Model backends, platforms, and Python version compatibility for H2O Sonar predictive AI explainers."
+keywords: ["scikit-learn", "H2O-3", "Driverless AI", "MOJO", "supported models", "model backend"]
+---
+
+H2O Sonar supports four predictive model backends. All backends are supported on **Linux x86 64-bit** with **Python 3.11**.
+
+<Note>
+  macOS is not supported. H2O Sonar predictive explainers require Linux x86 64-bit. Running on macOS will result in import or runtime errors for packages in the `[explainers]` extras group.
+</Note>
+
+## Compatibility matrix
+
+| OS / Python | Python 3.11 |
+|---|---|
+| **Linux x86 64-bit** | Driverless AI MOJO, Driverless AI REST, H2O-3, scikit-learn |
+
+---
+
+## Model backends
+
+<AccordionGroup>
+
+<Accordion title="scikit-learn" icon="python" defaultOpen={true}>
+
+Any fitted scikit-learn estimator can be passed directly to `run_interpretation()`. H2O Sonar calls the estimator's `predict()` or `predict_proba()` method to generate predictions during explanation.
+
+**Requirements:**
+- Python 3.11
+- Linux x86 64-bit
+- The estimator must be fitted before passing to `run_interpretation()`
+- Pass `used_features` to specify which dataset columns are model inputs
+
+**Example:**
+
+```python
+import pandas
+from sklearn import ensemble
+from h2o_sonar import interpret
+
+dataset_path = "data/credit.csv"
+target_column = "DEFAULT"
+
+dataset = pandas.read_csv(dataset_path)
+X = dataset.drop(target_column, axis=1)
+y = dataset[target_column]
+
+# fit the model
+model = ensemble.GradientBoostingClassifier(learning_rate=0.1)
+model.fit(X, y)
+
+# pass the fitted estimator directly
+interpretation = interpret.run_interpretation(
+    dataset=dataset_path,
+    model=model,
+    used_features=list(X.columns),
+    target_col=target_column,
+    results_location="results/",
+)
+```
+
+Any scikit-learn-compatible estimator works, including those from XGBoost, LightGBM, and CatBoost, as long as they implement the scikit-learn estimator interface.
+
+</Accordion>
+
+<Accordion title="H2O-3" icon="water">
+
+H2O-3 models are supported via the H2O Java backend. Pass a path to a saved H2O-3 model binary, or wrap an in-memory H2O-3 model in an `ExplainableModel` instance.
+
+**Requirements:**
+- Python 3.11
+- Linux x86 64-bit
+- Java 1.7 or later must be installed and on `$PATH`
+- H2O-3 Python package installed: `pip install h2o`
+
+**Example — passing a model path:**
+
+```python
+from h2o_sonar import interpret
+from h2o_sonar.lib.api import models
+
+# wrap the H2O-3 model binary in an ExplainableModel
+explainable_model = models.ExplainableModel(
+    model_path="models/gbm_model",
+    model_type=models.ExplainableModelType.h2o3,
+)
+
+interpretation = interpret.run_interpretation(
+    dataset="data/credit.csv",
+    model=explainable_model,
+    target_col="DEFAULT",
+    results_location="results/",
+)
+```
+
+<Note>
+  Java must be available on the system. If the Java process cannot start, H2O-3 model loading will fail with a `RuntimeError`. Verify with `java -version` before running interpretations.
+</Note>
+
+</Accordion>
+
+<Accordion title="Driverless AI MOJO" icon="file-code">
+
+Driverless AI MOJO (Model Object, Optimized) pipelines are self-contained model archives that include all feature engineering and scoring logic. Pass the path to the `.mojo` file.
+
+**Requirements:**
+- Python 3.11
+- Linux x86 64-bit
+- `daimojo` Python package (bundled with the H2O Sonar `[explainers]` extras or available from H2O.ai)
+
+**Example — Python API:**
+
+```python
+from h2o_sonar import interpret
+
+interpretation = interpret.run_interpretation(
+    dataset="data/credit.csv",
+    model="models/pipeline.mojo",
+    target_col="DEFAULT",
+    results_location="results/",
+)
+```
+
+**Example — CLI:**
+
+```sh
+h2o-sonar run interpretation \
+  --dataset data/credit.csv \
+  --model models/pipeline.mojo \
+  --target-col DEFAULT
+```
+
+<Tip>
+  MOJO models include their own feature engineering pipeline, so you do not need to pass `used_features`. H2O Sonar reads the feature metadata directly from the MOJO file.
+</Tip>
+
+</Accordion>
+
+<Accordion title="Driverless AI REST scorer" icon="server">
+
+The Driverless AI REST scorer exposes a model as an HTTP scoring endpoint. Pass the scorer URL as a string.
+
+**Requirements:**
+- Python 3.11
+- Linux x86 64-bit
+- A running Driverless AI local REST scorer or deployment template instance
+- Network access to the scorer URL from the machine running H2O Sonar
+
+**Example:**
+
+```python
+from h2o_sonar import interpret
+from h2o_sonar.lib.api import models
+
+explainable_model = models.ExplainableModel(
+    model_path="http://localhost:9090",
+    model_type=models.ExplainableModelType.dai_rest_scorer,
+)
+
+interpretation = interpret.run_interpretation(
+    dataset="data/credit.csv",
+    model=explainable_model,
+    target_col="DEFAULT",
+    results_location="results/",
+)
+```
+
+</Accordion>
+
+</AccordionGroup>
+
+---
+
+## Choosing a backend
+
+<CardGroup cols={2}>
+
+<Card title="scikit-learn" icon="python">
+  Best for: Python-native models, rapid experimentation, any sklearn-compatible estimator. No Java or extra binaries required.
+</Card>
+
+<Card title="Driverless AI MOJO" icon="file-code">
+  Best for: Production Driverless AI models. Self-contained archive includes full feature engineering pipeline.
+</Card>
+
+<Card title="H2O-3" icon="water">
+  Best for: Models trained in H2O Flow or the H2O-3 Python API. Requires Java on the host.
+</Card>
+
+<Card title="Driverless AI REST" icon="server">
+  Best for: Models deployed as REST scoring endpoints. Useful when the model binary is not directly accessible.
+</Card>
+
+</CardGroup>
+
+---
+
+## Installation
+
+Install H2O Sonar with explainer dependencies using the `[explainers]` extras group:
+
+```sh
+pip install "h2o_sonar-<version>.whl[explainers]"
+```
+
+For H2O-3 support, also install the H2O-3 Python package and ensure Java is available:
+
+```sh
+pip install h2o
+java -version
+```
+
+See the [installation guide](https://h2oai.github.io/h2o-sonar/) for full dependency details and platform-specific notes.

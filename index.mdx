@@ -1,97 +1,87 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "H2O Sonar"
+description: "A Python library for responsible AI — 18 predictive explainers, 44 generative evaluators, and 1,000,000+ curated evaluation prompts for LLMs, RAG systems, and predictive models."
 ---
 
-## Setting up
+H2O Sonar is a Python library for AI model risk management across predictive and generative systems. It provides explainers and evaluators that validate models, detect bias, assess fairness and privacy, and generate audit documentation. Built for regulated industries, H2O Sonar enables risk, compliance, and validation teams to quantify model risk and maintain robust governance throughout the model lifecycle.
 
-Get your documentation site up and running in minutes.
-
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Install H2O Sonar with pip and configure your environment
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Predictive AI quickstart" icon="bolt" href="/quickstart-predictive">
+    Explain your first predictive model in minutes
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Generative AI quickstart" icon="robot" href="/quickstart-generative">
+    Evaluate your first LLM or RAG system
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="API Reference" icon="code" href="/api/interpret">
+    Full Python API documentation
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## What H2O Sonar does
 
-Everything you need to create world-class documentation.
+<CardGroup cols={2}>
+  <Card title="Predictive AI explainers" icon="chart-bar" href="/predictive/explainers">
+    18 explainers for feature importance, fairness, model debugging, and validity testing across scikit-learn, H2O-3, and Driverless AI models
+  </Card>
+  <Card title="Generative AI evaluators" icon="magnifying-glass" href="/generative/evaluators">
+    44 evaluators covering hallucination, faithfulness, RAG retrieval quality, privacy, toxicity, fairness, and summarization
+  </Card>
+  <Card title="Evals library" icon="database" href="/generative/evals-library">
+    1,000,000+ curated prompts in 700+ test suites including MMLU, ARC, HellaSwag, and CUAD benchmarks
+  </Card>
+  <Card title="Auto model selection" icon="trophy" href="/advanced/auto-model-selection">
+    Automated best-model selection using multi-objective optimization across evaluation metrics
+  </Card>
+</CardGroup>
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+## Get started in 3 steps
 
-## Need inspiration?
+<Steps>
+  <Step title="Install H2O Sonar">
+    Download the wheel from [GitHub Releases](https://github.com/h2oai/h2o-sonar/releases) and install it with your desired extras.
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+    ```bash
+    pip install h2o_sonar-3.2.1.whl[explainers,evaluators]
+    ```
+  </Step>
+  <Step title="Run your first interpretation or evaluation">
+    For predictive models, call `interpret.run_interpretation()`. For generative models, call `evaluate.run_evaluation()`.
+
+    ```python
+    from h2o_sonar import interpret
+
+    interpretation = interpret.run_interpretation(
+        dataset="dataset.csv",
+        model=my_sklearn_model,
+        used_features=feature_names,
+        target_col="target",
+        results_location="./results",
+    )
+    ```
+  </Step>
+  <Step title="Review your report">
+    H2O Sonar generates HTML, JSON, and PDF reports in your results directory. Open the HTML report in your browser to explore explanations interactively.
+
+    ```bash
+    open ./results/h2o-sonar/mli_experiment_*/interpretation.html
+    ```
+  </Step>
+</Steps>
+
+## Key capabilities
+
+| Capability | Details |
+|---|---|
+| **Predictive explainers** | 18 explainers: SHAP, PD/ICE, surrogate trees, fairness, drift detection, and more |
+| **Generative evaluators** | 44 evaluators: hallucination, faithfulness, RAG retrieval, toxicity, privacy, and more |
+| **Supported predictive models** | scikit-learn, H2O-3, Driverless AI MOJO, Driverless AI REST |
+| **Supported LLM/RAG hosts** | OpenAI, Anthropic, Amazon Bedrock, Azure OpenAI, h2oGPTe, h2oGPT, ollama |
+| **Report formats** | HTML (interactive), JSON (machine-readable), PDF (regulatory submissions) |
+| **Platform** | Linux x86 64-bit, Python 3.11 |
+
+<Note>
+  H2O Sonar is used by [H2O Eval Studio](https://h2o.ai/platform/enterprise-h2ogpte/eval-studio/) and [H2O Driverless AI](https://h2o.ai/h2o-driverless-ai) in production.
+</Note>

@@ -1,0 +1,345 @@
+---
+title: "CLI reference"
+description: "Complete reference for the h2o-sonar command-line interface."
+---
+
+## Syntax
+
+```
+h2o-sonar <action> <entity> [options]
+```
+
+**Actions:** `add`, `show`, `list`, `describe`, `run`, `upload`
+
+**Entities:** `config`, `version`, `explainer`, `explainers`, `interpretation`, `interpretations`
+
+---
+
+<AccordionGroup>
+
+<Accordion title="show version">
+
+Print the installed H2O Sonar version.
+
+```bash
+h2o-sonar show version
+```
+
+**Example output:**
+
+```
+H2O Sonar 3.2.1
+```
+
+</Accordion>
+
+<Accordion title="show config">
+
+Print the current H2O Sonar configuration as JSON. Sensitive fields are decrypted if an encryption key is provided.
+
+**Options:**
+
+<ParamField path="--config-path" type="str">
+  Path to a JSON or TOML H2O Sonar config file.
+</ParamField>
+
+<ParamField path="--encryption-key" type="str">
+  Secret key to decrypt sensitive config fields. Alternatively, set the `H2O_SONAR_ENCRYPTION_KEY` environment variable.
+</ParamField>
+
+```bash
+h2o-sonar show config \
+  --config-path h2o-sonar-config.json \
+  --encryption-key my-secret-key
+```
+
+</Accordion>
+
+<Accordion title="add config">
+
+Add a connection or license entry to a config file. The config file is created if it does not exist. Sensitive fields are encrypted automatically when an encryption key is set.
+
+**Options:**
+
+<ParamField path="--config-path" type="str" required>
+  Path to the JSON or TOML config file to update.
+</ParamField>
+
+<ParamField path="--config-type" type="str" required>
+  Type of config item to add. One of: `CONNECTION`, `LICENSE`.
+</ParamField>
+
+<ParamField path="--config-value" type="str" required>
+  JSON-serialized config item. The value must not be pre-encrypted.
+</ParamField>
+
+<ParamField path="--encryption-key" type="str">
+  Secret key used to encrypt sensitive fields (`token`, `password`) before writing. Alternatively, set `H2O_SONAR_ENCRYPTION_KEY`.
+</ParamField>
+
+```bash
+h2o-sonar add config \
+  --config-path h2o-sonar-config.json \
+  --config-type CONNECTION \
+  --config-value '{
+    "connection_type": "H2O_GPT_E",
+    "name": "H2O GPT Enterprise",
+    "description": "Production h2oGPTe instance.",
+    "server_url": "https://h2ogpte.h2o.ai",
+    "token": "YOUR_API_TOKEN_HERE",
+    "token_use_type": "API_KEY"
+  }'
+```
+
+</Accordion>
+
+<Accordion title="list explainers">
+
+List available explainer IDs. Use `--detailed` to include full descriptors.
+
+**Options:**
+
+<ParamField path="--detailed" type="flag">
+  Print full explainer descriptors instead of IDs only.
+</ParamField>
+
+<ParamField path="--args-as-json-location" type="str">
+  Path to a JSON file that overrides CLI filtering arguments (for example, to filter by `experiment_types` or `keywords`).
+</ParamField>
+
+```bash
+# list explainer IDs
+h2o-sonar list explainers
+
+# list with full descriptors
+h2o-sonar list explainers --detailed
+```
+
+**Example output (IDs only):**
+
+```json
+{
+  "explainers": [
+    "h2o_sonar.explainers.dt_surrogate_explainer.DtSurrogateExplainer",
+    "h2o_sonar.explainers.dia_explainer.DiaExplainer"
+  ]
+}
+```
+
+JSON filter file example:
+
+```json h2o-sonar-args.json
+{
+  "experiment_types": ["regression"],
+  "explanation_scopes": ["local_scope"],
+  "keywords": ["explains-fairness"]
+}
+```
+
+</Accordion>
+
+<Accordion title="describe explainer">
+
+Print the full descriptor for a single explainer, including its parameters and supported explanation types.
+
+**Options:**
+
+<ParamField path="--explainer" type="str" required>
+  The fully qualified explainer ID.
+</ParamField>
+
+```bash
+h2o-sonar describe explainer \
+  --explainer h2o_sonar.explainers.dia_explainer.DiaExplainer
+```
+
+</Accordion>
+
+<Accordion title="run interpretation">
+
+Run an interpretation on a dataset and model. Produces an HTML report and structured results.
+
+**Options:**
+
+<ParamField path="--dataset" type="str" required>
+  Path to the dataset CSV file.
+</ParamField>
+
+<ParamField path="--target-col" type="str" required>
+  Name of the target column in the dataset.
+</ParamField>
+
+<ParamField path="--model" type="str">
+  Path to the serialized model file, URL, or resource locator. Accepts `.pickle` or `.mojo` models.
+</ParamField>
+
+<ParamField path="--results-location" type="str" required>
+  Directory where interpretation results are saved.
+</ParamField>
+
+<ParamField path="--results-formats" type="str">
+  Comma-separated list of MIME types for result formats to generate.
+</ParamField>
+
+<ParamField path="--validset" type="str">
+  Path to a validation dataset.
+</ParamField>
+
+<ParamField path="--testset" type="str">
+  Path to a test dataset.
+</ParamField>
+
+<ParamField path="--use_raw-features" type="str" default="true">
+  Set to `false` to force the use of transformed features in surrogate models instead of original (raw) features.
+</ParamField>
+
+<ParamField path="--weight-col" type="str">
+  Dataset column containing per-example weights.
+</ParamField>
+
+<ParamField path="--drop-cols" type="str">
+  Comma-separated list of dataset columns to exclude.
+</ParamField>
+
+<ParamField path="--sample-num-rows" type="int">
+  Number of rows to sample from the dataset. Use `0` to disable sampling. Defaults to auto-sampling based on available RAM.
+</ParamField>
+
+<ParamField path="--used-features" type="str">
+  Comma-separated list of feature names used by the model.
+</ParamField>
+
+<ParamField path="--model-type" type="str">
+  Model serialization format. One of: `pickle`, `mojo`.
+</ParamField>
+
+<ParamField path="--explainers" type="str">
+  Comma-separated list of explainer IDs to run. Only the most important explainers run by default.
+</ParamField>
+
+<ParamField path="--all-explainers" type="flag">
+  Run all compatible explainers instead of only the default set.
+</ParamField>
+
+<ParamField path="--explainers-pars" type="str">
+  JSON dictionary mapping explainer IDs to their parameter dictionaries, for example `"{'ExplainerID': {'param': value}}"`.
+</ParamField>
+
+<ParamField path="--config-path" type="str">
+  Path to a JSON or TOML H2O Sonar config file.
+</ParamField>
+
+<ParamField path="--encryption-key" type="str">
+  Encryption key for sensitive config fields. Alternatively, set `H2O_SONAR_ENCRYPTION_KEY`.
+</ParamField>
+
+<ParamField path="--upload-to" type="str">
+  Connection key of an h2oGPT Enterprise instance where the HTML report will be uploaded so you can chat with it.
+</ParamField>
+
+<ParamField path="--args-as-json-location" type="str">
+  Path to a JSON file that provides all arguments, overriding any CLI flags. Useful for repeatability and CI/CD.
+</ParamField>
+
+<ParamField path="--log-level" type="str" default="warning">
+  Logging verbosity. One of: `error`, `warning`, `info`, `debug`.
+</ParamField>
+
+```bash
+# basic interpretation
+h2o-sonar run interpretation \
+  --dataset dataset.csv \
+  --target-col PROFIT \
+  --results-location /home/user/results \
+  --model model.pickle \
+  --all-explainers
+
+# selected explainers with custom parameters and upload
+h2o-sonar run interpretation \
+  --dataset dataset.csv \
+  --target-col PROFIT \
+  --results-location /home/user/results \
+  --model model.pickle \
+  --used-features FEATURE_1,FEATURE_2,FEATURE_3 \
+  --explainers h2o_sonar.explainers.dia_explainer.DiaExplainer \
+  --explainers-pars "{'h2o_sonar.explainers.dia_explainer.DiaExplainer':{'cut_off': 0.5}}" \
+  --drop-cols COLUMN_1,COLUMN_2,COLUMN_3 \
+  --config-path h2o-sonar-config.json \
+  --upload-to 4cff6fc9-f49a-4dda-aeb5-2c42e9f12807
+
+# run from a JSON arguments file
+h2o-sonar run interpretation \
+  --args-as-json-location h2o-sonar-args.json
+```
+
+JSON arguments file example:
+
+```json h2o-sonar-args.json
+{
+  "dataset": "dataset.csv",
+  "model": "model.pickle",
+  "target_col": "PROFIT",
+  "results_location": "./results"
+}
+```
+
+</Accordion>
+
+<Accordion title="list interpretations">
+
+List interpretation results stored in a given directory.
+
+**Options:**
+
+<ParamField path="--results-location" type="str" required>
+  Path to the directory, URL, or location containing interpretation results.
+</ParamField>
+
+<ParamField path="--log-level" type="str" default="warning">
+  Logging verbosity. One of: `error`, `warning`, `info`, `debug`.
+</ParamField>
+
+```bash
+h2o-sonar list interpretations \
+  --results-location /home/user/results
+```
+
+</Accordion>
+
+<Accordion title="upload interpretation">
+
+Upload an interpretation report (HTML or PDF) to an h2oGPT Enterprise collection so you can chat with it.
+
+**Options:**
+
+<ParamField path="--interpretation" type="str" required>
+  Path to the interpretation report file (HTML or PDF).
+</ParamField>
+
+<ParamField path="--upload-to" type="str" required>
+  Connection key of the h2oGPT Enterprise instance to upload to. Must match a key in your config file.
+</ParamField>
+
+<ParamField path="--collection-name" type="str">
+  Name of the collection to upload into. A new collection is created if not specified.
+</ParamField>
+
+<ParamField path="--config-path" type="str">
+  Path to a JSON or TOML H2O Sonar config file.
+</ParamField>
+
+<ParamField path="--encryption-key" type="str">
+  Encryption key for sensitive config fields. Alternatively, set `H2O_SONAR_ENCRYPTION_KEY`.
+</ParamField>
+
+```bash
+h2o-sonar upload interpretation \
+  --interpretation ./results/h2o-sonar/mli-experiment/interpretation-detailed.html \
+  --upload-to 4cff6fc9-f49a-4dda-aeb5-2c42e9f12807 \
+  --collection-name "Q1 Model Audit" \
+  --config-path h2o-sonar-config.json
+```
+
+</Accordion>
+
+</AccordionGroup>

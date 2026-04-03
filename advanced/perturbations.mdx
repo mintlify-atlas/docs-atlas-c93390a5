@@ -1,0 +1,148 @@
+---
+title: "Perturbations"
+description: "Perturb test suites and evaluation datasets to stress-test LLM robustness."
+---
+
+## Overview
+
+Perturbations modify prompts in test suites and evaluation datasets to stress-test how robust an LLM or RAG system is to input variation. Common perturbation examples include paraphrasing, introducing typos, changing word order, or translating prompts to a different language and back.
+
+Perturbed datasets can be used to:
+
+- Measure model sensitivity to prompt phrasing.
+- Identify brittle prompts that cause inconsistent answers.
+- Expand test coverage without writing new test cases manually.
+
+## Listing available perturbators
+
+```python
+from h2o_sonar import evaluate
+
+perturbators = evaluate.list_perturbators()
+for p in perturbators:
+    print(p.id, "-", p.name)
+```
+
+You can optionally filter by keyword:
+
+```python
+# list only perturbators tagged with "typo"
+perturbators = evaluate.list_perturbators(keywords=["typo"])
+```
+
+## Describing a perturbator
+
+Get full details on a specific perturbator, including its parameters and description:
+
+```python
+from h2o_sonar import evaluate
+
+descriptor = evaluate.describe_perturbator(
+    "h2o_sonar.perturbators.typo_perturbator.TypoPerturbator"
+)
+print(descriptor)
+```
+
+## Perturbing content
+
+Use `evaluate.perturb()` to apply one or more perturbators to a string, test case, test suite, or dataset.
+
+### Parameters
+
+<ParamField path="content" type="str | RagTestCaseConfig | RagTestSuiteConfig | LlmDataset" required>
+  The content to perturb. Accepts:
+
+  - `str` — a plain string prompt. Always returns a new string (strings are immutable).
+  - `RagTestCaseConfig` — a single RAG test case.
+  - `RagTestSuiteConfig` — a full test suite containing multiple test cases.
+  - `LlmDataset` — an LLM evaluation dataset.
+</ParamField>
+
+<ParamField path="perturbators" type="list[str | PerturbatorToRun]" required>
+  One or more perturbators to apply. Each entry is either a perturbator ID string or a `PerturbatorToRun` instance that also carries custom parameters and intensity settings.
+</ParamField>
+
+<ParamField path="in_place" type="bool" default="True">
+  Controls whether the content is modified in place or expanded:
+
+  - `True` (default) — prompts in the existing test cases are replaced with their perturbed versions. The number of test cases stays the same.
+  - `False` — each test case is cloned and the clone is perturbed. The result has **2× the number of test cases** — the originals plus one perturbed copy each.
+
+  <Note>
+    For `str` inputs, `in_place` has no effect — a new string is always returned because strings are immutable in Python.
+  </Note>
+</ParamField>
+
+<ParamField path="raised_errors" type="list | None" default="None">
+  Controls error handling:
+
+  - `None` — raise exceptions immediately when a perturbator fails.
+  - Empty list `[]` — suppress exceptions and collect them in the provided list for inspection after the call.
+</ParamField>
+
+## Examples
+
+### List all perturbators
+
+```python
+from h2o_sonar import evaluate
+
+for p in evaluate.list_perturbators():
+    print(f"{p.id}: {p.name}")
+```
+
+### Perturb a string
+
+```python
+from h2o_sonar import evaluate
+
+original = "What is the capital of France?"
+perturbed = evaluate.perturb(
+    content=original,
+    perturbators=["h2o_sonar.perturbators.typo_perturbator.TypoPerturbator"],
+)
+print(perturbed)
+# e.g. "Waht is the capitla of Farnce?"
+```
+
+### Perturb a test suite in place
+
+Modifies existing prompts without changing the number of test cases:
+
+```python
+from h2o_sonar import evaluate
+from h2o_sonar.lib.api import testing
+
+suite = testing.RagTestSuiteConfig.load_from_json("data/my_test_suite.json")
+print(f"Before: {len(suite.test_cases)} test cases")
+
+perturbed_suite = evaluate.perturb(
+    content=suite,
+    perturbators=["h2o_sonar.perturbators.typo_perturbator.TypoPerturbator"],
+    in_place=True,
+)
+print(f"After: {len(perturbed_suite.test_cases)} test cases")  # same count
+```
+
+### Expand a test suite (double the test cases)
+
+Creates perturbed copies alongside the originals, doubling the dataset size:
+
+```python
+from h2o_sonar import evaluate
+from h2o_sonar.lib.api import testing
+
+suite = testing.RagTestSuiteConfig.load_from_json("data/my_test_suite.json")
+print(f"Before: {len(suite.test_cases)} test cases")
+
+expanded_suite = evaluate.perturb(
+    content=suite,
+    perturbators=["h2o_sonar.perturbators.typo_perturbator.TypoPerturbator"],
+    in_place=False,
+)
+print(f"After: {len(expanded_suite.test_cases)} test cases")  # 2× original count
+```
+
+<Note>
+  When `in_place=False`, the dataset doubles in size — each original test case is kept and a perturbed clone is appended. This is useful for coverage expansion but increases evaluation runtime proportionally.
+</Note>

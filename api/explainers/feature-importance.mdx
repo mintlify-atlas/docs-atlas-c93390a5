@@ -1,0 +1,79 @@
+---
+title: "Feature importance explainers"
+description: "API reference for surrogate trees, SHAP, and Morris sensitivity explainers."
+---
+
+Feature importance explainers quantify how much each input feature contributes to model predictions. Use these to understand which variables drive your model's behavior globally.
+
+```python
+from h2o_sonar import interpret
+
+interpretation = interpret.run_interpretation(
+    dataset="dataset.csv",
+    model=model,
+    target_col="target",
+    explainers=["h2o_sonar.explainers.fi_kernel_shap_explainer.KernelShapFeatureImportanceExplainer"],
+    results_location="./results",
+)
+```
+
+<AccordionGroup>
+  <Accordion title="Surrogate Decision Tree">
+    **Explainer ID:** `h2o_sonar.explainers.dt_surrogate_explainer.DecisionTreeSurrogateExplainer`
+
+    Approximates the black-box model with an interpretable decision tree surrogate. The tree structure reveals the most important decision paths the model has learned.
+
+    - **Scope:** Global
+    - **Output:** Decision tree visualization, feature importance rankings
+    - **Supported models:** scikit-learn, H2O-3, Driverless AI MOJO
+
+    ```python
+    explainers=["h2o_sonar.explainers.dt_surrogate_explainer.DecisionTreeSurrogateExplainer"]
+    ```
+  </Accordion>
+
+  <Accordion title="Residual Surrogate Decision Tree">
+    **Explainer ID:** `h2o_sonar.explainers.residual_dt_surrogate_explainer.ResidualDecisionTreeSurrogateExplainer`
+
+    Fits a surrogate decision tree on the model residuals (prediction errors) rather than the predictions themselves. Reveals which features drive prediction errors — useful for diagnosing where the model underperforms.
+
+    - **Scope:** Global
+    - **Output:** Residual decision tree, error-driving features
+  </Accordion>
+
+  <Accordion title="Kernel SHAP (Shapley Values for Original Features)">
+    **Explainer ID:** `h2o_sonar.explainers.fi_kernel_shap_explainer.KernelShapFeatureImportanceExplainer`
+
+    Computes Shapley values for each original feature using the Kernel SHAP method. Provides theoretically grounded, model-agnostic feature attributions based on cooperative game theory.
+
+    - **Scope:** Global and local
+    - **Output:** SHAP values per feature, summary plot
+    - **Supported models:** Any model with a predict function
+
+    ```python
+    explainers=["h2o_sonar.explainers.fi_kernel_shap_explainer.KernelShapFeatureImportanceExplainer"]
+    ```
+  </Accordion>
+
+  <Accordion title="Transformed Feature SHAP (MOJO Models)">
+    **Explainer ID:** `h2o_sonar.explainers.transformed_fi_shapley_explainer.ShapleyMojoTransformedFeatureImportanceExplainer`
+
+    Computes Shapley values for the transformed (internal) features of Driverless AI MOJO models. Useful when you want to understand feature importance in terms of the engineered features the model actually uses.
+
+    - **Scope:** Global
+    - **Output:** SHAP values for transformed features
+    - **Supported models:** Driverless AI MOJO only
+
+    <Note>This explainer requires the `[explainers]` package extra and a valid MOJO model file.</Note>
+  </Accordion>
+
+  <Accordion title="Morris Sensitivity Analysis">
+    **Explainer ID:** `h2o_sonar.explainers.morris_sa_explainer.MorrisSensitivityAnalysisExplainer`
+
+    Performs Morris elementary effects sensitivity analysis. Efficiently screens for the most influential input variables using one-at-a-time (OAT) perturbations, making it well-suited for high-dimensional models.
+
+    - **Scope:** Global
+    - **Output:** Mean absolute elementary effects (μ\*), standard deviation (σ) per feature
+    - **Supported models:** Any model with a predict function
+  </Accordion>
+</AccordionGroup>

@@ -1,0 +1,141 @@
+---
+title: "Bring your own evaluator"
+description: "Extend H2O Sonar with custom evaluators using BYOE recipes — Python code snippets that implement the evaluator API."
+keywords: ["BYOE", "bring your own evaluator", "BYOP", "custom evaluator", "LLM judge", "h2o sonar"]
+---
+
+H2O Sonar supports **BYOE** (Bring Your Own Evaluator) recipes: Python code snippets that extend the built-in evaluation capabilities. You can use custom evaluators alongside or instead of the 44 built-in evaluators.
+
+The most common pattern is the **Bring Your Own Prompt (BYOP)** evaluator. A BYOP evaluator supplies a prompt template that an LLM judge uses to score each test case. H2O Sonar handles the judge setup, parallel execution, answer parsing, leaderboard aggregation, and HTML report generation — you only need to provide the prompt.
+
+## How BYOP evaluators work
+
+The `AbcByopEvaluator` base class (in `h2o_sonar/evaluators/abc_byop_evaluator.py`) wires together:
+
+- **Prompt construction** — your template is filled with `{INPUT}`, `{ACTUAL_OUTPUT}`, `{EXPECTED_OUTPUT}`, and `{CONTEXT}` placeholders for each test case row.
+- **Judge evaluation** — the completed prompt is sent to the configured LLM judge (defaults to OpenAI GPT-4).
+- **Answer parsing** — the judge's free-text response is coerced to a boolean pass/fail using the `_CLASSES` mapping you define.
+- **Leaderboard generation** — results are aggregated into a model leaderboard and written to the evaluation HTML report.
+
+## Implementing a custom BYOP evaluator
+
+<Steps>
+
+  <Step title="Subclass AbcByopEvaluator">
+    Create a Python file and inherit from `AbcByopEvaluator`. Set `_display_name` and override the `_CLASSES` namedtuple to define the strings your judge returns for pass and fail.
+
+    ```python
+    from h2o_sonar.evaluators import abc_byop_evaluator
+
+
+    class PolitenessEvaluator(abc_byop_evaluator.AbcByopEvaluator):
+        _display_name = "Politeness evaluator"
+
+        # judge must respond with "polite" or "rude"
+        _CLASSES = abc_byop_evaluator.AbcByopEvaluator.Classes(
+            failure="rude",
+            success="polite",
+        )
+    ```
+  </Step>
+
+  <Step title="Implement _initialize_prompt_template">
+    Override `_initialize_prompt_template()` and return your prompt string. Use at least one of the built-in identifiers: `{INPUT}`, `{ACTUAL_OUTPUT}`, `{EXPECTED_OUTPUT}`, or `{CONTEXT}`.
+
+    ```python
+        def _initialize_prompt_template(self) -> str:
+            return f"""You are evaluating the politeness of a response.
+
+    [QUESTION]: ```{abc_byop_evaluator.AbcByopEvaluator.IDENTIFIER_INPUT}```
+    [ANSWER]: ```{abc_byop_evaluator.AbcByopEvaluator.IDENTIFIER_ACTUAL_OUTPUT}```
+
+    Respond with only "polite" if the answer is polite and professional.
+    Respond with only "rude" if the answer is impolite or dismissive.
+    """
+    ```
+
+    <Note>
+      The prompt template must contain at least one of `{INPUT}`, `{ACTUAL_OUTPUT}`, `{EXPECTED_OUTPUT}`, or `{CONTEXT}`. H2O Sonar raises `ValueError` during `setup()` if none are present.
+    </Note>
+  </Step>
+
+  <Step title="Register the evaluator">
+    Register your class with the H2O Sonar interpret module so it is visible to the runtime:
+
+    ```python
+    from h2o_sonar import interpret
+
+    interpret.register_explainer(PolitenessEvaluator)
+    ```
+  </Step>
+
+  <Step title="Run the evaluation">
+    Pass your evaluator's ID to `evaluate.run_evaluation()`:
+
+    ```python
+    from h2o_sonar import evaluate
+
+    evaluation = evaluate.run_evaluation(
+        dataset=test_lab.dataset,
+        models=list(test_lab.evaluated_models.values()),
+        evaluators=[PolitenessEvaluator.evaluator_id()],
+        results_location="/tmp/eval-results",
+    )
+
+    print(f"HTML report: file://{evaluation.result.get_html_report_location()}")
+    ```
+  </Step>
+
+</Steps>
+
+## Complete minimal example
+
+```python
+from h2o_sonar import evaluate, interpret
+from h2o_sonar.evaluators import abc_byop_evaluator
+
+
+class PolitenessEvaluator(abc_byop_evaluator.AbcByopEvaluator):
+    _display_name = "Politeness evaluator"
+
+    _CLASSES = abc_byop_evaluator.AbcByopEvaluator.Classes(
+        failure="rude",
+        success="polite",
+    )
+
+    def _initialize_prompt_template(self) -> str:
+        return f"""You are evaluating the politeness of a response.
+
+[QUESTION]: ```{abc_byop_evaluator.AbcByopEvaluator.IDENTIFIER_INPUT}```
+[ANSWER]: ```{abc_byop_evaluator.AbcByopEvaluator.IDENTIFIER_ACTUAL_OUTPUT}```
+
+Respond with only "polite" if the answer is polite and professional.
+Respond with only "rude" if the answer is impolite or dismissive.
+"""
+
+
+# register and run
+interpret.register_explainer(PolitenessEvaluator)
+
+evaluation = evaluate.run_evaluation(
+    dataset=test_lab.dataset,
+    models=list(test_lab.evaluated_models.values()),
+    evaluators=[PolitenessEvaluator.evaluator_id()],
+    results_location="/tmp/eval-results",
+)
+```
+
+<Tip>
+  For a more advanced example, see `LanguageMismatchByopEvaluator` in `h2o_sonar/evaluators/language_mismatch_byop_evaluator.py`. It overrides `_CLASSES`, `_metrics_meta`, and `_keywords` in addition to `_initialize_prompt_template`.
+</Tip>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Evaluators" icon="list" href="/generative/evaluators">
+    Browse all 44 built-in evaluators organized by category.
+  </Card>
+  <Card title="Running evaluations" icon="play" href="/generative/running-evaluations">
+    Learn how to build a test lab and run a full evaluation workflow.
+  </Card>
+</CardGroup>

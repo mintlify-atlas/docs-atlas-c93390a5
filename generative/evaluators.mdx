@@ -1,0 +1,195 @@
+---
+title: "Evaluators"
+description: "Reference for all 44 built-in generative AI evaluators organized by category."
+keywords: ["evaluators", "generative AI", "LLM", "RAG", "evaluation", "h2o sonar"]
+---
+
+H2O Sonar provides **44 built-in evaluators** for LLM, RAG, and AI agent evaluation. Evaluators are organized into seven categories: Agent, Generation, Retrieval, Privacy, Fairness, Summarization, and Classification.
+
+## Listing evaluators programmatically
+
+Use `evaluate.list_evaluators()` to retrieve evaluator descriptors, and `evaluate.describe_evaluator()` to inspect a specific evaluator's parameters and metadata.
+
+```python
+from h2o_sonar import evaluate
+
+# list all generative evaluators
+evaluators = evaluate.list_evaluators()
+for ev in evaluators:
+    print(ev.id, "-", ev.display_name)
+
+# list evaluators filtered by keyword
+rag_evaluators = evaluate.list_evaluators(keywords=["evaluates_rag"])
+
+# describe a specific evaluator
+description = evaluate.describe_evaluator(
+    evaluator="h2o_sonar.evaluators.rag_hallucination_evaluator.RagHallucinationEvaluator"
+)
+print(description)
+```
+
+<Note>
+  `list_evaluators()` filters by the `llm` keyword by default, returning all generative evaluators. Pass a `keywords` list to narrow results.
+</Note>
+
+## Evaluators by category
+
+<AccordionGroup>
+
+  <Accordion title="Agent (1 evaluator)">
+    Evaluators for AI agent pipelines.
+
+    | Evaluator | Description |
+    |-----------|-------------|
+    | **Agent Sanity Check** | Validates that an AI agent's responses are consistent and coherent for basic sanity verification. |
+
+    ```python
+    from h2o_sonar.evaluators import agent_sanity_check_evaluator
+
+    evaluator_id = agent_sanity_check_evaluator.AgentSanityCheckEvaluator.evaluator_id()
+    ```
+  </Accordion>
+
+  <Accordion title="Generation (22 evaluators)">
+    Evaluators that assess the quality of LLM or RAG-generated answers.
+
+    | Evaluator | Description |
+    |-----------|-------------|
+    | **Answer Accuracy (Semantic Similarity)** | Measures answer accuracy using semantic similarity between actual and expected outputs. |
+    | **Answer Correctness** | Evaluates overall correctness of a RAG answer relative to the expected answer. |
+    | **Answer Relevancy** | Measures how relevant the generated answer is to the original question using a judge. |
+    | **Answer Relevancy (Sentence Similarity)** | Computes answer relevancy without a judge using sentence-level similarity. |
+    | **Answer Semantic Sentence Similarity** | Evaluates semantic similarity at the sentence level between actual and expected outputs. |
+    | **Answer Semantic Similarity** | Computes semantic similarity between the actual and expected answer embeddings. |
+    | **Fact-Check (Agent-based)** | Uses an agentic fact-checking loop to verify factual accuracy of LLM outputs. |
+    | **Faithfulness** | Assesses whether the generated answer is faithful to the retrieved context. |
+    | **Groundedness (Semantic Similarity)** | Checks that the answer is grounded in the retrieved context using semantic similarity. |
+    | **Hallucination** | Detects hallucinated facts in generated answers relative to the retrieved context. |
+    | **JSON Schema** | Validates that the model output conforms to an expected JSON schema. |
+    | **Language Mismatch (Judge)** | Detects mismatches between the language of the input question and the generated answer. |
+    | **Looping Detection** | Detects repetitive or looping behavior in generated text. |
+    | **Machine Translation (GPTScore)** | Scores machine translation quality using GPTScore methodology. |
+    | **Parameterizable BYOP** | Evaluates outputs using a user-supplied prompt template and an LLM judge. |
+    | **Perplexity** | Measures model perplexity as a proxy for fluency and language quality. |
+    | **Questions Drift** | Detects semantic drift between successive questions in multi-turn conversations. |
+    | **Question Answering (GPTScore)** | Scores question-answering quality using GPTScore methodology. |
+    | **RAGAS** | Runs the RAGAS evaluation framework metrics for RAG pipelines. |
+    | **Self-Consistency** | Checks whether repeated model runs on the same prompt produce consistent answers. |
+    | **Step Alignment and Completeness** | Evaluates alignment and completeness of procedure steps relative to a reference. |
+    | **Text Matching** | Checks for the presence of expected tokens or phrases in the model output. |
+
+    ```python
+    from h2o_sonar.evaluators import rag_hallucination_evaluator
+
+    evaluator_id = rag_hallucination_evaluator.RagHallucinationEvaluator.evaluator_id()
+    ```
+  </Accordion>
+
+  <Accordion title="Retrieval (5 evaluators)">
+    Evaluators that assess the quality of the retrieval step in RAG systems.
+
+    | Evaluator | Description |
+    |-----------|-------------|
+    | **Context Mean Reciprocal Rank** | Computes the Mean Reciprocal Rank of retrieved context chunks. |
+    | **Context Precision** | Measures the precision of retrieved contexts relative to the expected answer. |
+    | **Context Recall** | Measures the recall of relevant information across retrieved context chunks. |
+    | **Context Relevancy** | Evaluates how relevant the retrieved context is to the input question using a judge. |
+    | **Context Relevancy (Soft Recall and Precision)** | Computes soft recall and precision scores for retrieved context chunk relevancy. |
+
+    ```python
+    from h2o_sonar.evaluators import rag_context_recall_evaluator
+
+    evaluator_id = rag_context_recall_evaluator.RagContextRecallEvaluator.evaluator_id()
+    ```
+  </Accordion>
+
+  <Accordion title="Privacy (4 evaluators)">
+    Evaluators that detect privacy violations and data leakage in model outputs.
+
+    | Evaluator | Description |
+    |-----------|-------------|
+    | **Contact Information** | Detects whether the model output contains contact information such as phone numbers or emails. |
+    | **PII Leakage** | Detects personally identifiable information (PII) leakage in model outputs. |
+    | **Encoding Guardrail** | Checks for encoded content (e.g., Base64) that could represent a data exfiltration attempt. |
+    | **Sensitive Data Leakage** | Detects leakage of sensitive data categories such as financial or health information. |
+
+    ```python
+    from h2o_sonar.evaluators import pii_leakage_evaluator
+
+    evaluator_id = pii_leakage_evaluator.PiiLeakageEvaluator.evaluator_id()
+    ```
+  </Accordion>
+
+  <Accordion title="Fairness (4 evaluators)">
+    Evaluators that measure bias, stereotyping, and harmful content in model outputs.
+
+    | Evaluator | Description |
+    |-----------|-------------|
+    | **Fairness Bias** | Detects fairness-related biases in LLM or RAG outputs. |
+    | **Sexism (Judge)** | Uses an LLM judge to detect sexist content in model outputs. |
+    | **Stereotypes (Judge)** | Uses an LLM judge to detect stereotyping in model outputs. |
+    | **Toxicity** | Scores the toxicity of generated text using a classification model. |
+
+    ```python
+    from h2o_sonar.evaluators import toxicity_evaluator
+
+    evaluator_id = toxicity_evaluator.ToxicityEvaluator.evaluator_id()
+    ```
+  </Accordion>
+
+  <Accordion title="Summarization (7 evaluators)">
+    Evaluators for assessing summarization quality.
+
+    | Evaluator | Description |
+    |-----------|-------------|
+    | **BERTScore** | Computes BERTScore using contextual embeddings to compare summaries. |
+    | **BLEU** | Computes the BLEU n-gram overlap score between generated and reference summaries. |
+    | **ROUGE** | Computes ROUGE recall-oriented overlap between generated and reference summaries. |
+    | **Summarization (Completeness and Faithfulness)** | Evaluates both completeness and faithfulness of generated summaries. |
+    | **Summarization (Judge)** | Uses an LLM judge to evaluate overall summarization quality. |
+    | **Summarization with reference (GPTScore)** | Scores summarization quality using GPTScore with a reference summary. |
+    | **Summarization without reference (GPTScore)** | Scores summarization quality using GPTScore without a reference summary. |
+
+    ```python
+    from h2o_sonar.evaluators import bertscore_evaluator
+
+    evaluator_id = bertscore_evaluator.BertscoreEvaluator.evaluator_id()
+    ```
+  </Accordion>
+
+  <Accordion title="Classification (1 evaluator)">
+    Evaluators for text classification tasks.
+
+    | Evaluator | Description |
+    |-----------|-------------|
+    | **Classification** | Evaluates LLM classification outputs against expected class labels. |
+
+    ```python
+    from h2o_sonar.evaluators import classification_evaluator
+
+    evaluator_id = classification_evaluator.ClassificationEvaluator.evaluator_id()
+    ```
+  </Accordion>
+
+</AccordionGroup>
+
+## Using evaluator IDs in a run
+
+Pass evaluator IDs or class references to `evaluate.run_evaluation()`:
+
+```python
+from h2o_sonar import evaluate
+from h2o_sonar.evaluators import rag_hallucination_evaluator, toxicity_evaluator
+
+evaluation = evaluate.run_evaluation(
+    dataset=test_lab.dataset,
+    models=list(test_lab.evaluated_models.values()),
+    evaluators=[
+        rag_hallucination_evaluator.RagHallucinationEvaluator().evaluator_id(),
+        toxicity_evaluator.ToxicityEvaluator().evaluator_id(),
+    ],
+    results_location="/tmp/eval-results",
+)
+```
+
+See [Running evaluations](/generative/running-evaluations) for the full workflow.

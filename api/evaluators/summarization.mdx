@@ -1,0 +1,85 @@
+---
+title: "Summarization and classification evaluators"
+description: "API reference for BERTScore, BLEU, ROUGE, GPTScore summarization, and classification evaluators."
+---
+
+Summarization evaluators measure the quality of LLM-generated summaries against reference texts. Classification evaluators assess structured label prediction tasks.
+
+<AccordionGroup>
+  <Accordion title="BERTScore">
+    **Evaluator ID:** `h2o_sonar.evaluators.bertscore_evaluator.BertscoreEvaluator`
+
+    Computes BERTScore — a reference-based metric that measures semantic similarity between generated and reference text using contextual BERT embeddings. More robust to paraphrasing than n-gram overlap metrics.
+
+    - **Output:** Precision, Recall, F1 BERTScore values
+    - **GPU acceleration:** Supported
+    - **Requires:** Reference summaries in the test suite
+
+    ```python
+    evaluators=["h2o_sonar.evaluators.bertscore_evaluator.BertscoreEvaluator"]
+    ```
+  </Accordion>
+
+  <Accordion title="BLEU">
+    **Evaluator ID:** `h2o_sonar.evaluators.bleu_evaluator.BleuEvaluator`
+
+    Computes BLEU (Bilingual Evaluation Understudy) score — a classic n-gram precision metric widely used for machine translation and summarization evaluation.
+
+    - **Output:** BLEU score (0–1, higher is better)
+    - **Requires:** Reference text for comparison
+    - **Note:** BLEU measures surface-level n-gram overlap; complement with semantic metrics like BERTScore
+  </Accordion>
+
+  <Accordion title="ROUGE">
+    **Evaluator ID:** `h2o_sonar.evaluators.rouge_evaluator.RougeEvaluator`
+
+    Computes ROUGE (Recall-Oriented Understudy for Gisting Evaluation) scores — recall-focused n-gram overlap metrics standard for summarization benchmarking.
+
+    - **Output:** ROUGE-1, ROUGE-2, ROUGE-L scores
+    - **Requires:** Reference summaries
+  </Accordion>
+
+  <Accordion title="Summarization (Completeness and Faithfulness)">
+    **Evaluator ID:** `h2o_sonar.evaluators.summarization_evaluator.SummarizationEvaluator`
+
+    Evaluates summaries on two axes: completeness (does the summary cover all key points from the source?) and faithfulness (does the summary avoid introducing facts not in the source?).
+
+    - **Output:** Completeness score, faithfulness score
+    - **Approach:** LLM-assisted decomposition and verification
+  </Accordion>
+
+  <Accordion title="Summarization (Judge)">
+    **Evaluator ID:** `h2o_sonar.evaluators.summarization_byop_evaluator.SummarizationByopEvaluator`
+
+    Uses a configurable LLM judge prompt to evaluate summary quality on any custom criterion. Flexible alternative when domain-specific quality criteria are needed.
+  </Accordion>
+
+  <Accordion title="Summarization with reference (GPTScore)">
+    **Evaluator ID:** `h2o_sonar.evaluators.gptscore_summary_with_reference_evaluator.GptScoreSummaryWithReferenceEvaluator`
+
+    Scores summary quality using the GPTScore framework with a reference summary. Uses generative model log-probabilities as a quality signal.
+
+    - **Requires:** Reference summary
+  </Accordion>
+
+  <Accordion title="Summarization without reference (GPTScore)">
+    **Evaluator ID:** `h2o_sonar.evaluators.gptscore_summary_without_reference_evaluator.GptScoreSummaryWithoutReferenceEvaluator`
+
+    Scores summary quality using GPTScore without requiring a reference summary. Useful when ground-truth summaries are unavailable.
+
+    - **Use case:** Open-domain summarization without annotated references
+  </Accordion>
+
+  <Accordion title="Classification">
+    **Evaluator ID:** `h2o_sonar.evaluators.classification_evaluator.ClassificationEvaluator`
+
+    Evaluates LLM classification tasks by comparing predicted labels against expected labels. Computes accuracy, precision, recall, and F1 for structured label prediction.
+
+    - **Output:** Accuracy, precision, recall, F1 per class
+    - **Use case:** Intent classification, sentiment analysis, topic labeling validation
+  </Accordion>
+</AccordionGroup>
+
+<Tip>
+  For production summarization pipelines, combine ROUGE or BLEU for fast baseline scoring with BERTScore for semantic quality assessment and the Summarization (Completeness and Faithfulness) evaluator for content-level validation.
+</Tip>

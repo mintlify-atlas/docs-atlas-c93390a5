@@ -1,122 +1,99 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "H2O Sonar",
+  "theme": "palm",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#fae204",
+    "light": "#84740c",
+    "dark": "#303026"
   },
-  "favicon": "/favicon.svg",
+  "favicon": "https://media.brand.dev/a2905db9-6282-4da9-b8b6-7fb6bef56fb8.jpg",
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/h2oai/h2o-sonar"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/h2oai/h2o-sonar"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Get Started",
             "pages": [
-              "index",
-              "quickstart",
-              "development"
+              "introduction",
+              "installation",
+              "quickstart-predictive",
+              "quickstart-generative"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Predictive AI",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "predictive/explainers",
+              "predictive/running-interpretations",
+              "predictive/bring-your-own-explainer",
+              "predictive/supported-models"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Generative AI",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "generative/evaluators",
+              "generative/running-evaluations",
+              "generative/host-types",
+              "generative/evals-library",
+              "generative/bring-your-own-evaluator"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "Advanced Usage",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "advanced/auto-model-selection",
+              "advanced/configuration",
+              "advanced/perturbations",
+              "advanced/cli-reference"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Core API",
             "pages": [
-              "api-reference/introduction"
+              "api/interpret",
+              "api/evaluate",
+              "api/configuration"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Explainers",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api/explainers/feature-importance",
+              "api/explainers/feature-behavior",
+              "api/explainers/fairness",
+              "api/explainers/model-validity"
+            ]
+          },
+          {
+            "group": "Evaluators",
+            "pages": [
+              "api/evaluators/generation",
+              "api/evaluators/retrieval",
+              "api/evaluators/privacy-fairness",
+              "api/evaluators/summarization"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

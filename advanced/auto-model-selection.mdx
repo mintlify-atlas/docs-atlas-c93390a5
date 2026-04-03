@@ -1,0 +1,129 @@
+---
+title: "Auto model selection"
+description: "Automatically identify the best LLM, RAG, or embedding model using multi-objective optimization on your evaluation data."
+---
+
+## Overview
+
+The H2O Sonar **evaluations comparator** is a decision-support tool for **LLM**, **RAG**, and **Agent** model selection. Rather than relying on raw numbers alone, it provides side-by-side analysis and automated model recommendations based on your specific evaluation data.
+
+## How it works
+
+The comparator performs intelligent cross-model comparison by identifying *comparable models* through the intersection of evaluation data:
+
+- **Prompt alignment** — matches models that share the same prompts and questions, ensuring only equivalent test cases are compared.
+- **Metric consistency** — identifies common metric scores across evaluations to guarantee an apples-to-apples comparison.
+
+Once comparable models are established, the comparator applies multi-objective optimization to:
+
+- **Rank performance** — automatically suggest the best model based on weighted priority across your chosen metrics.
+- **Identify strengths** — pinpoint which model excels at retrieval (RAG) versus reasoning (agents).
+- **Detect regressions** — compare new model versions against your established baselines to prevent quality drift.
+
+## Export formats
+
+The comparator generates reports in two formats:
+
+- **HTML** — leaderboards, color-coded heatmaps, and detailed per-test-case visualizations for stakeholder review.
+- **JSON** — machine-readable output for CI/CD pipelines, custom dashboards, and archival.
+
+## Comparing evaluations
+
+Use `evaluate.compare_evaluations()` to compare a baseline evaluation against a current one:
+
+```python
+from h2o_sonar import evaluate
+
+diff = evaluate.compare_evaluations(
+    baseline_evaluation=baseline_eval,
+    current_evaluation=current_eval,
+    comparison_method=evaluate.SentenceComparisonMethod.COSINE_DISTANCE,
+    sentence_similarity_threshold=0.9,
+)
+
+# save HTML and JSON reports
+diff.save(results_location="./results/comparison")
+print(f"Best model: {diff.best_model}")
+```
+
+### Parameters
+
+<ParamField path="baseline_evaluation" type="Evaluation | str" required>
+  The baseline evaluation object or its string key. Used as the reference point for comparison.
+</ParamField>
+
+<ParamField path="current_evaluation" type="Evaluation | str" required>
+  The current evaluation object or its string key. This is the evaluation being assessed against the baseline.
+</ParamField>
+
+<ParamField path="evaluators" type="list[str | EvaluatorToRun] | None">
+  List of evaluator IDs to include in the comparison. Pass `None` or an empty list to compare all evaluators present in both evaluations.
+</ParamField>
+
+<ParamField path="baseline_llm_model" type="str" default="">
+  LLM model name for the baseline evaluation. Use this when comparing models across different host types (for example, h2oGPTe vs. Amazon Bedrock) where model names differ by provider. Either both `baseline_llm_model` and `current_llm_model` must be set, or neither.
+</ParamField>
+
+<ParamField path="current_llm_model" type="str" default="">
+  LLM model name for the current evaluation. See `baseline_llm_model`.
+</ParamField>
+
+<ParamField path="results_location" type="str | Path | None">
+  Directory where evaluation results are stored. Defaults to the current working directory.
+</ParamField>
+
+<ParamField path="comparison_method" type="SentenceComparisonMethod" default="COSINE_DISTANCE">
+  The method used to match prompts across evaluations:
+
+  - `COSINE_DISTANCE` — cosine distance of sentence embeddings (default).
+  - `EXACT_MATCH` — exact string matching.
+  - `BERT_SCORE` — contextual similarity via BERTScore embeddings.
+</ParamField>
+
+<ParamField path="sentence_similarity_threshold" type="float" default="0.9">
+  Similarity threshold above which two prompts are considered equivalent. Prompts with similarity >= threshold are treated as common across evaluations.
+</ParamField>
+
+## Use case examples
+
+### Embedding model comparison
+
+Compare two embedding model configurations on the same RAG test suite to select the best retriever:
+
+```python
+from h2o_sonar import evaluate
+
+# run evaluations for each embedding configuration (previously completed)
+diff = evaluate.compare_evaluations(
+    baseline_evaluation="eval-key-embedding-v1",
+    current_evaluation="eval-key-embedding-v2",
+    results_location="./results",
+    comparison_method=evaluate.SentenceComparisonMethod.COSINE_DISTANCE,
+)
+
+diff.save(results_location="./results/embedding-comparison")
+```
+
+### LLM version regression testing
+
+Detect quality regressions when upgrading an LLM version in a CI/CD pipeline:
+
+```python
+from h2o_sonar import evaluate
+
+diff = evaluate.compare_evaluations(
+    baseline_evaluation="eval-key-llm-v1-0",
+    current_evaluation="eval-key-llm-v1-1",
+    results_location="./results",
+    comparison_method=evaluate.SentenceComparisonMethod.BERT_SCORE,
+    sentence_similarity_threshold=0.85,
+)
+
+# check for regressions
+if diff.has_regressions():
+    raise RuntimeError("LLM regression detected — blocking deployment.")
+```
+
+<Note>
+  When comparing evaluations from different host providers, set `baseline_llm_model` and `current_llm_model` explicitly so the comparator can match models by name rather than by provider-specific identifiers.
+</Note>

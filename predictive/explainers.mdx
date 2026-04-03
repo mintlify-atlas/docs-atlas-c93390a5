@@ -1,0 +1,246 @@
+---
+title: "Explainers"
+description: "Reference for all 18 built-in predictive AI explainers in H2O Sonar, organized by category."
+keywords: ["explainers", "interpretability", "feature importance", "fairness", "model debugging"]
+---
+
+H2O Sonar ships 18 built-in explainers covering model behavior, feature importance, fairness analysis, model debugging, and validity testing. Each explainer produces a structured explanation that can be rendered as an HTML report, queried as JSON, or exported as a PDF.
+
+## Listing explainers programmatically
+
+Use `interpret.list_explainers()` to retrieve all explainers available in the current environment, with optional filters:
+
+```python
+from h2o_sonar import interpret
+
+# list all registered explainers
+explainers = interpret.list_explainers()
+for e in explainers:
+    print(e.id, "-", e.display_name)
+```
+
+Filter by keyword to find explainers relevant to a specific concern:
+
+```python
+# list only fairness explainers
+fairness_explainers = interpret.list_explainers(keywords=["fairness"])
+```
+
+Filter by experiment type and explanation scope:
+
+```python
+# list explainers that support binary classification and global explanations
+binary_global = interpret.list_explainers(
+    experiment_types=["binomial"],
+    explanation_scopes=["global"],
+)
+```
+
+Use `interpret.describe_explainer()` to inspect the parameters and metadata for a specific explainer:
+
+```python
+# describe the Disparate Impact Analysis explainer
+description = interpret.describe_explainer(
+    "h2o_sonar.explainers.dia_explainer.DiaExplainer"
+)
+print(description)
+```
+
+---
+
+## Explainers by category
+
+<AccordionGroup>
+
+<Accordion title="Approximate model behavior" icon="tree">
+
+These explainers build a surrogate model that approximates the behavior of the original model using a simple, interpretable decision tree.
+
+**Surrogate Decision Tree**
+
+Fits a shallow decision tree to approximate the predictions of the target model across the training dataset. Produces a global explanation that describes which features drive the model's decisions and how they interact.
+
+- Source: `h2o_sonar/explainers/dt_surrogate_explainer.py`
+- Explanation scope: global and local
+- Supported problem types: regression, binary, multiclass
+
+**Residual Surrogate Decision Tree**
+
+Fits a surrogate decision tree on the residuals (errors) of the target model rather than its predictions. Useful for identifying systematic patterns in model mistakes and diagnosing where the model fails.
+
+- Source: `h2o_sonar/explainers/residual_dt_surrogate_explainer.py`
+- Explanation scope: global and local
+- Supported problem types: regression, binary
+
+</Accordion>
+
+<Accordion title="Feature importance" icon="chart-bar">
+
+These explainers quantify the relative contribution of each input feature to the model's predictions.
+
+**Shapley Values for Original Features — Kernel SHAP**
+
+Estimates SHAP (SHapley Additive exPlanations) values for the original input features using the model-agnostic Kernel SHAP method. Works with any black-box model.
+
+- Source: `h2o_sonar/explainers/fi_kernel_shap_explainer.py`
+- Explanation scope: global and local
+- Supported problem types: regression, binary, multiclass
+
+**Shapley Values for Transformed Features of MOJO Models**
+
+Computes exact SHAP values for the internal (transformed) features of H2O Driverless AI MOJO models. Requires a MOJO model file.
+
+- Source: `h2o_sonar/explainers/transformed_fi_shapley_explainer.py`
+- Explanation scope: global
+- Supported problem types: regression, binary, multiclass
+
+**Morris Sensitivity Analysis**
+
+Performs Morris one-at-a-time (OAT) sensitivity analysis to identify which features the model is most sensitive to. Computationally efficient screening method suited to high-dimensional datasets.
+
+- Source: `h2o_sonar/explainers/morris_sa_explainer.py`
+- Explanation scope: global
+- Supported problem types: regression, binary
+
+</Accordion>
+
+<Accordion title="Feature behavior" icon="wave-square">
+
+These explainers reveal how the model's predictions change as individual feature values vary across their range.
+
+**Partial Dependence / ICE**
+
+Computes partial dependence plots (PD) showing the marginal effect of each feature on model predictions, alongside individual conditional expectation (ICE) curves showing how predictions vary for each individual row.
+
+- Source: `h2o_sonar/explainers/pd_ice_explainer.py`
+- Explanation scope: global (PD) and local (ICE)
+- Supported problem types: regression, binary, multiclass
+
+**Partial Dependence for 2 Features**
+
+Computes a two-dimensional partial dependence surface for pairs of features. Reveals interaction effects between two features that a single-feature PD plot cannot capture.
+
+- Source: `h2o_sonar/explainers/pd_2_features_explainer.py`
+- Explanation scope: global
+- Supported problem types: regression, binary
+
+**Friedman's H-statistic**
+
+Measures the strength of pairwise feature interactions using Friedman's H-statistic. A value near zero indicates no interaction; a value near one indicates strong interaction.
+
+- Source: `h2o_sonar/explainers/friedman_h_statistic_explainer.py`
+- Explanation scope: global
+- Supported problem types: regression, binary
+
+**Summary SHAP**
+
+Produces a SHAP summary plot that combines feature importance with feature effects. Each point represents one row in the dataset, colored by feature value, showing the distribution of SHAP values per feature.
+
+- Source: `h2o_sonar/explainers/summary_shap_explainer.py`
+- Explanation scope: global
+- Supported problem types: regression, binary, multiclass
+
+</Accordion>
+
+<Accordion title="Fairness" icon="scale-balanced">
+
+These explainers evaluate whether model predictions exhibit disparate impact across demographic or protected groups.
+
+**Disparate Impact Analysis (DIA)**
+
+Compares aggregate prediction outcomes across unprivileged and privileged groups for categorical features. Computes adverse impact ratios, accuracy, true positive rate, precision, and a suite of fairness metrics for each group.
+
+- Source: `h2o_sonar/explainers/dia_explainer.py`
+- Explanation scope: global
+- Supported problem types: regression, binary
+
+Key parameters:
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `dia_cols` | list | `None` | Features to analyse for disparate impact. If empty, all eligible categorical features are used. |
+| `cut_off` | float | `0.0` | Custom prediction cut-off threshold. |
+| `maximize_metric` | string | `"F1"` | Metric used to select the optimal cut-off. Options: `F1`, `F05`, `F2`, `MCC`. |
+| `max_cardinality` | int | `10` | Maximum number of unique values for a feature to be treated as categorical. |
+| `min_cardinality` | int | `2` | Minimum number of unique values required. |
+| `num_card` | int | `25` | Maximum cardinality for numeric features to be treated as categorical. |
+
+</Accordion>
+
+<Accordion title="Model debugging" icon="bug">
+
+These explainers help identify systematic errors, data quality issues, and unexpected model behaviors.
+
+**Residual PD / ICE**
+
+Applies partial dependence and ICE analysis to the model's residuals instead of its predictions. Reveals whether the model's errors are systematically related to specific feature values or ranges.
+
+- Source: `h2o_sonar/explainers/residual_pd_ice_explainer.py`
+- Explanation scope: global and local
+- Supported problem types: regression, binary
+
+**Dataset and Model Insights**
+
+Runs automated data and model quality checks. Reports potential data issues (missing values, class imbalance, outliers) and model-level signals (feature leakage, target correlation anomalies).
+
+- Source: `h2o_sonar/explainers/dataset_and_model_insights_explainer.py`
+- Explanation scope: global
+- Supported problem types: regression, binary, multiclass
+
+</Accordion>
+
+<Accordion title="Model validity testing" icon="shield-check">
+
+These explainers test model robustness, reliability, and expected behavior under controlled conditions.
+
+**Adversarial Similarity**
+
+Identifies pairs of dataset rows that are similar in feature space but receive very different model predictions. Large numbers of adversarial pairs may indicate unstable or unreliable model behavior.
+
+- Source: `h2o_sonar/explainers/adversarial_similarity_explainer.py`
+- Explanation scope: global
+- Supported problem types: regression, binary, multiclass
+
+**Backtesting**
+
+Evaluates model performance on a rolling or expanding time window. Intended for time-series and temporal datasets; tests whether model performance is stable over time or degrades.
+
+- Source: `h2o_sonar/explainers/backtesting_explainer.py`
+- Explanation scope: global
+- Supported problem types: regression, binary
+
+**Calibration Score**
+
+Measures how well the model's predicted probabilities align with observed outcome frequencies. A well-calibrated model with a predicted probability of 0.8 should be correct approximately 80% of the time.
+
+- Source: `h2o_sonar/explainers/calibration_score_explainer.py`
+- Explanation scope: global
+- Supported problem types: binary
+
+**Drift Detection**
+
+Detects statistical drift between training and validation or test datasets. Computes distribution shift metrics per feature to flag features where the production population differs from the training population.
+
+- Source: `h2o_sonar/explainers/drift_explainer.py`
+- Explanation scope: global
+- Supported problem types: regression, binary, multiclass
+
+**Segment Performance**
+
+Computes model performance metrics broken down by segments of the data (e.g., by value range of a specific feature). Reveals subgroups where the model underperforms relative to overall metrics.
+
+- Source: `h2o_sonar/explainers/segment_performance_explainer.py`
+- Explanation scope: global
+- Supported problem types: regression, binary, multiclass
+
+**Size Dependency**
+
+Evaluates how model performance changes as a function of training set size by training on progressively larger subsets and measuring the resulting performance curve (learning curve analysis).
+
+- Source: `h2o_sonar/explainers/size_dependency_explainer.py`
+- Explanation scope: global
+- Supported problem types: regression, binary
+
+</Accordion>
+
+</AccordionGroup>

@@ -1,0 +1,299 @@
+---
+title: "Bring your own explainer"
+description: "Extend H2O Sonar with custom explainers using the BYOE (Bring Your Own Explainer) recipe API."
+keywords: ["BYOE", "custom explainer", "bring your own explainer", "explainer recipe", "register explainer"]
+---
+
+H2O Sonar supports **BYOE** (Bring Your Own Explainer) — a mechanism for registering custom explainers written in Python alongside the 18 built-in explainers. A BYOE recipe is a Python class that implements the H2O Sonar explainer API. Once registered, your custom explainer runs as part of any interpretation, produces structured results, and is included in the HTML/JSON/PDF report.
+
+You can use custom explainers in combination with or instead of built-in explainers.
+
+<Tip>
+  Open-source recipe **templates** and **examples** are bundled with the H2O Sonar distribution:
+
+  - `examples/predictive/byoe/templates` — skeleton implementations for each explanation type. Copy the template that matches the output your explainer will produce and replace the mock data with your actual computation.
+  - `examples/predictive/byoe/examples` — complete, runnable explainer examples that demonstrate specific API features such as parameters, logging, persistence, and custom explanation types.
+</Tip>
+
+---
+
+## Explainer types
+
+Choose the template that matches the type of output your explainer produces:
+
+| Template file | Explanation type | Use when |
+|---|---|---|
+| `template_featimp_explainer.py` | Feature importance (global + local) | Your explainer outputs per-feature importance scores |
+| `template_dt_explainer.py` | Decision tree (global + local on-demand) | Your explainer produces a surrogate decision tree |
+| `template_pd_explainer.py` | Partial dependence + ICE (global + local) | Your explainer outputs PD curves and per-row ICE curves |
+| `template_summary_featimp_explainer.py` | Summary feature importance | Your explainer produces a SHAP-style summary plot |
+| `template_md_explainer.py` | Markdown output | Your explainer produces free-form Markdown text |
+| `template_scatter_plot_explainer.py` | Scatter plot | Your explainer outputs a scatter plot |
+
+---
+
+## Creating a custom explainer
+
+<Steps>
+
+<Step title="Choose a template">
+
+Copy the template that matches your desired output type from `examples/predictive/byoe/templates`. The simplest starting point is a hello-world explainer that archives its working directory:
+
+```python
+from h2o_sonar.lib.api import explainers
+from h2o_sonar.lib.api import explanations
+from h2o_sonar.lib.api import results
+
+
+class MyCustomExplainer(explainers.Explainer):
+    _display_name = "My Custom Explainer"
+    _description = "A custom explainer that demonstrates the BYOE API."
+    _regression = True
+    _binary = True
+    _global_explanation = True
+    _explanation_types = [explanations.WorkDirArchiveExplanation]
+
+    def __init__(self):
+        explainers.Explainer.__init__(self)
+
+    def explain(self, X, y=None, explanations_types=None, **kwargs) -> list:
+        explanation = self.create_explanation_workdir_archive(
+            display_name=self.display_name,
+            display_category="Custom",
+        )
+        return [explanation]
+
+    def get_result(self) -> results.TemplateResult:
+        return results.TemplateResult(
+            persistence=self.persistence,
+            explainer_id=self.explainer_id(),
+            explainer_name=MyCustomExplainer._display_name,
+        )
+```
+
+</Step>
+
+<Step title="Declare supported problem types and explanation scope">
+
+Set class-level boolean attributes to declare which problem types and explanation scopes your explainer supports. H2O Sonar uses these to determine compatibility before running the explainer.
+
+```python
+class MyCustomExplainer(explainers.Explainer):
+    _display_name = "My Custom Explainer"
+    _description = "Description shown in the report."
+
+    # problem types
+    _iid = True           # standard IID dataset
+    _time_series = False  # time-series dataset
+    _regression = True    # regression
+    _binary = True        # binary classification
+    _multiclass = False   # multiclass classification
+
+    # explanation scope
+    _global_explanation = True   # produces global explanations
+    _local_explanation = False   # produces per-row local explanations
+
+    # explanation output types (must match the format you return from explain())
+    _explanation_types = [explanations.WorkDirArchiveExplanation]
+```
+
+</Step>
+
+<Step title="Define explainer parameters (optional)">
+
+Declare typed parameters that users can pass to your explainer via `explainer_keywords` or the `ExplainerToRun` API. Parameters are resolved from a JSON string stored in `self.explainer_params_as_str`.
+
+```python
+from h2o_sonar.lib.api import commons
+
+class MyCustomExplainer(explainers.Explainer):
+    PARAM_ROWS_TO_SCORE = "rows_to_score"
+
+    _parameters = [
+        explainers.ExplainerParam(
+            param_name=PARAM_ROWS_TO_SCORE,
+            description="Number of dataset rows to score.",
+            param_type=commons.ExplainerParamType.int,
+            default_value=1000,
+            src=explainers.ExplainerParam.SRC_EXPLAINER_PARAMS,
+        ),
+    ]
+
+    def __init__(self):
+        explainers.Explainer.__init__(self)
+        self.args = None
+
+    def setup(self, model, persistence, **e_params):
+        explainers.Explainer.setup(self, model, persistence, **e_params)
+
+        # resolve declared parameters from the JSON params string
+        self.args = explainers.ExplainerArgs(MyCustomExplainer._parameters)
+        self.args.resolve_params(
+            explainer_params=explainers.ExplainerArgs.json_str_to_dict(
+                self.explainer_params_as_str
+            )
+        )
+
+    def explain(self, X, y=None, explanations_types=None, **kwargs) -> list:
+        # read the resolved parameter
+        rows = self.args.get(self.PARAM_ROWS_TO_SCORE)
+        df = X[:rows, :]
+
+        prediction = self.model.predict(df)
+        self.logger.info(f"Predictions shape: {prediction.shape}")
+
+        return [
+            self.create_explanation_workdir_archive(
+                display_name=self.display_name,
+                display_category="Custom",
+            )
+        ]
+```
+
+</Step>
+
+<Step title="Implement a feature importance explainer (example)">
+
+To produce structured feature importance output that renders in the report, use `GlobalFeatImpExplanation` and `GlobalFeatImpJSonFormat`. The index file maps class names to per-class data files; each data file contains a list of `{"label": ..., "value": ...}` entries.
+
+```python
+import json
+from h2o_sonar.lib.api import explainers
+from h2o_sonar.lib.api import explanations
+from h2o_sonar.lib.api import formats
+from h2o_sonar.lib.api import results
+
+
+class MyFeatureImportanceExplainer(explainers.Explainer):
+    _display_name = "My Feature Importance"
+    _description = "Custom feature importance explainer."
+    _regression = True
+    _binary = True
+    _global_explanation = True
+    _explanation_types = [explanations.GlobalFeatImpExplanation]
+
+    def explain(self, X, y=None, explanations_types=None, **kwargs):
+        global_explanation = explanations.GlobalFeatImpExplanation(
+            explainer=self,
+            display_name=self.display_name,
+            display_category="Custom",
+        )
+
+        # index: maps class names to per-class JSON data files
+        index = {
+            "files": {"target": "featimp_target.json"},
+            "total_rows": X.shape[0],
+            "documentation": self._description,
+        }
+        json_format = formats.GlobalFeatImpJSonFormat(
+            explanation=global_explanation,
+            json_data=json.dumps(index),
+            persistence=self.persistence.store,
+        )
+
+        # per-class data file: list of feature importance scores
+        # replace with your actual computation
+        feature_data = {
+            "data": [
+                {"label": name, "value": float(i) / X.shape[1], "scope": "global"}
+                for i, name in enumerate(reversed(X.names))
+            ]
+        }
+        json_format.add_data(
+            format_data=json.dumps(feature_data),
+            file_name="featimp_target.json",
+        )
+
+        return [global_explanation]
+
+    def get_result(self) -> results.FeatureImportanceResult:
+        return results.FeatureImportanceResult(
+            persistence=self.persistence,
+            explainer_id=self.explainer_id(),
+            h2o_sonar_config=self.config,
+        )
+```
+
+</Step>
+
+<Step title="Register the explainer">
+
+Call `interpret.register_explainer()` with your class before running an interpretation. Registration is scoped to the current Python session.
+
+```python
+from h2o_sonar import interpret
+
+explainer_id = interpret.register_explainer(
+    explainer_class=MyCustomExplainer,
+)
+print(f"Registered explainer with ID: {explainer_id}")
+```
+
+You can assign a custom ID:
+
+```python
+explainer_id = interpret.register_explainer(
+    explainer_class=MyCustomExplainer,
+    explainer_id="my_custom_explainer_v1",
+)
+```
+
+</Step>
+
+<Step title="Run an interpretation with the custom explainer">
+
+Once registered, include your explainer ID in `explainers` alongside any built-in explainers:
+
+```python
+interpretation = interpret.run_interpretation(
+    dataset=dataset_path,
+    model=model,
+    used_features=list(X.columns),
+    target_col=target_column,
+    results_location="results/",
+    explainers=[explainer_id, "DtSurrogateExplainer"],
+)
+```
+
+Or omit `explainers` entirely to run all compatible explainers — including your custom one.
+
+</Step>
+
+<Step title="Unregister the explainer (optional)">
+
+To remove the explainer from the registry, call `interpret.unregister_explainer()` with the explainer ID:
+
+```python
+unregistered_id = interpret.unregister_explainer(explainer_id=explainer_id)
+print(f"Unregistered: {unregistered_id}")
+```
+
+Returns the ID that was removed, or an empty string if no matching explainer was found.
+
+</Step>
+
+</Steps>
+
+---
+
+## Key API classes
+
+| Class | Module | Purpose |
+|---|---|---|
+| `explainers.Explainer` | `h2o_sonar.lib.api.explainers` | Base class for all custom explainers |
+| `explainers.ExplainerParam` | `h2o_sonar.lib.api.explainers` | Declares a typed, default-valued parameter |
+| `explainers.ExplainerArgs` | `h2o_sonar.lib.api.explainers` | Resolves parameter values from a JSON string |
+| `explanations.GlobalFeatImpExplanation` | `h2o_sonar.lib.api.explanations` | Feature importance global explanation |
+| `explanations.LocalFeatImpExplanation` | `h2o_sonar.lib.api.explanations` | Feature importance local (per-row) explanation |
+| `explanations.GlobalDtExplanation` | `h2o_sonar.lib.api.explanations` | Decision tree global explanation |
+| `explanations.PartialDependenceExplanation` | `h2o_sonar.lib.api.explanations` | Partial dependence global explanation |
+| `explanations.IndividualConditionalExplanation` | `h2o_sonar.lib.api.explanations` | ICE local explanation |
+| `explanations.WorkDirArchiveExplanation` | `h2o_sonar.lib.api.explanations` | Archive of working directory (general purpose) |
+| `formats.GlobalFeatImpJSonFormat` | `h2o_sonar.lib.api.formats` | JSON serialization for feature importance |
+| `formats.GlobalDtJSonFormat` | `h2o_sonar.lib.api.formats` | JSON serialization for decision tree |
+| `formats.PartialDependenceJSonFormat` | `h2o_sonar.lib.api.formats` | JSON serialization for PD plots |
+| `results.FeatureImportanceResult` | `h2o_sonar.lib.api.results` | Result accessor for feature importance |
+| `results.DtResult` | `h2o_sonar.lib.api.results` | Result accessor for decision tree |
+| `results.PdResult` | `h2o_sonar.lib.api.results` | Result accessor for PD/ICE |
+| `results.TemplateResult` | `h2o_sonar.lib.api.results` | Generic result accessor for archive explanations |

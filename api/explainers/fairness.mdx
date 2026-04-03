@@ -1,0 +1,72 @@
+---
+title: "Fairness explainers"
+description: "API reference for Disparate Impact Analysis and fairness assessment."
+---
+
+Fairness explainers measure whether a model treats different demographic groups equitably. Use them in regulated industries to demonstrate compliance with anti-discrimination requirements.
+
+<AccordionGroup>
+  <Accordion title="Disparate Impact Analysis (DIA)">
+    **Explainer ID:** `h2o_sonar.explainers.dia_explainer.DiaExplainer`
+
+    Measures disparate impact — the ratio of positive outcome rates between a protected group and a reference group. A ratio below the 80% rule (0.8) typically indicates adverse impact under US employment law (EEOC guidelines).
+
+    - **Scope:** Global
+    - **Output:** Disparity ratios per protected group, adverse impact flags, fairness report
+    - **Supported models:** Binary classification models
+
+    **Usage with parameters:**
+
+    ```python
+    from h2o_sonar import interpret
+    from h2o_sonar.lib.api import commons
+
+    explainer_to_run = commons.ExplainerToRun(
+        explainer_id="h2o_sonar.explainers.dia_explainer.DiaExplainer",
+        params={"cut_off": 0.5}
+    )
+
+    interpretation = interpret.run_interpretation(
+        dataset="dataset.csv",
+        model=model,
+        target_col="LOAN_APPROVED",
+        explainers=[explainer_to_run],
+        results_location="./results",
+    )
+    ```
+
+    **Key parameters:**
+
+    <ParamField path="cut_off" type="float" default="0.5">
+      Decision threshold for converting predicted probabilities to binary outcomes. Adjust to match your deployment threshold.
+    </ParamField>
+
+    **Accessing fairness results:**
+
+    ```python
+    result = interpretation.get_explainer_result(
+        interpretation.get_finished_explainer_ids()[0]
+    )
+
+    # Get disparity data for a protected feature
+    disparity_data = result.data(
+        feature_name="EDUCATION",
+        category="disparity"
+    )
+    print(disparity_data)
+    ```
+  </Accordion>
+
+  <Accordion title="Dataset and Model Insights">
+    **Explainer ID:** `h2o_sonar.explainers.dataset_and_model_insights_explainer.DatasetAndModelInsightsExplainer`
+
+    Generates a comprehensive set of dataset quality and model performance insights, including class balance, missing values, feature distributions, and per-segment performance metrics. Useful as a first-pass audit tool.
+
+    - **Scope:** Global
+    - **Output:** Dataset summary statistics, model performance breakdown, feature distribution plots
+  </Accordion>
+</AccordionGroup>
+
+<Note>
+  To meet regulatory requirements (e.g., SR 11-7, ECOA, Fair Housing Act), use DIA alongside other validity explainers such as Segment Performance and Calibration Score.
+</Note>

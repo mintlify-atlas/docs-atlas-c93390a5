@@ -1,0 +1,68 @@
+---
+title: "Retrieval evaluators"
+description: "API reference for evaluators that measure RAG context quality, precision, recall, and relevancy."
+---
+
+Retrieval evaluators measure the quality of the documents or chunks retrieved by a RAG system. Poor retrieval is a leading cause of RAG failures — these evaluators help you diagnose and improve the retrieval component independently of the generation component.
+
+<AccordionGroup>
+  <Accordion title="Context Mean Reciprocal Rank">
+    **Evaluator ID:** `h2o_sonar.evaluators.rag_context_mean_reciprocal_rank_evaluator.MeanReciprocalRankEvaluator`
+
+    Computes Mean Reciprocal Rank (MRR) across the retrieved context chunks. MRR measures how highly the most relevant chunk is ranked — a higher MRR means the most relevant context appears earlier in the retrieval list.
+
+    - **Metric range:** 0 to 1 (higher is better)
+    - **Use case:** Ranking quality of retrieval results
+  </Accordion>
+
+  <Accordion title="Context Precision">
+    **Evaluator ID:** `h2o_sonar.evaluators.rag_context_precision_evaluator.ContextPrecisionEvaluator`
+
+    Measures what fraction of the retrieved context chunks are actually relevant to the question. High precision means the RAG system retrieves few irrelevant chunks, reducing noise for the LLM.
+
+    - **Metric range:** 0 to 1 (higher is better)
+    - **Use case:** Minimizing noise in retrieved context
+
+    ```python
+    evaluation = evaluate.run_evaluation(
+        dataset=test_lab.dataset,
+        models=list(test_lab.evaluated_models.values()),
+        evaluators=[
+            "h2o_sonar.evaluators.rag_context_precision_evaluator.ContextPrecisionEvaluator",
+            "h2o_sonar.evaluators.rag_context_recall_evaluator.ContextRecallEvaluator",
+        ],
+        results_location="./results",
+    )
+    ```
+  </Accordion>
+
+  <Accordion title="Context Recall">
+    **Evaluator ID:** `h2o_sonar.evaluators.rag_context_recall_evaluator.ContextRecallEvaluator`
+
+    Measures what fraction of the information needed to answer the question is present in the retrieved context. High recall ensures the LLM has sufficient information to generate a complete answer.
+
+    - **Metric range:** 0 to 1 (higher is better)
+    - **Use case:** Ensuring retrieval completeness
+  </Accordion>
+
+  <Accordion title="Context Relevancy">
+    **Evaluator ID:** `h2o_sonar.evaluators.rag_context_relevancy_evaluator.ContextRelevancyEvaluator`
+
+    Uses an LLM judge to assess whether the retrieved context chunks are relevant to the question. Provides a semantic relevancy score rather than a precision/recall split.
+
+    - **Metric range:** 0 to 1 (higher is better)
+  </Accordion>
+
+  <Accordion title="Context Relevancy (Soft Recall and Precision)">
+    **Evaluator ID:** `h2o_sonar.evaluators.rag_chunk_relevancy_evaluator.ContextChunkRelevancyEvaluator`
+
+    Computes soft (semantic) recall and precision for retrieved chunks using embedding similarity rather than binary relevance judgments. More robust to lexical variation than exact-match metrics.
+
+    - **Output:** Soft recall score, soft precision score per chunk
+    - **Use case:** Embedding model evaluation, semantic retrieval quality
+  </Accordion>
+</AccordionGroup>
+
+<Tip>
+  Use precision and recall together: high precision with low recall means you retrieve too few chunks; high recall with low precision means you retrieve too many irrelevant ones. Aim to balance both metrics for your use case.
+</Tip>

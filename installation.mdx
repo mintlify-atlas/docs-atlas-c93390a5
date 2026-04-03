@@ -1,0 +1,132 @@
+---
+title: "Installation"
+description: "Install H2O Sonar on Linux with pip. Choose package extras for predictive explainers, generative evaluators, or both."
+keywords: ["install", "pip", "wheel", "explainers", "evaluators", "gpu", "prerequisites"]
+---
+
+## Prerequisites
+
+| Requirement | Notes |
+|---|---|
+| Operating system | Linux x86 64-bit |
+| Python | 3.11 (exactly) |
+| pip | 25.0 or newer |
+| CUDA-compatible GPU + NVIDIA drivers | Optional — accelerates generative evaluators |
+| Java 1.7+ | Optional — required for the H2O-3 predictive backend only |
+| Graphviz | Optional — required for predictive decision-tree visualizations only |
+
+<Warning>
+The `[explainers]` extra and several evaluator dependencies (including `numba` and `umap-learn`) are **not supported on macOS**. Linux x86 64-bit is the only supported platform for the full feature set.
+</Warning>
+
+## Download the wheel
+
+Download the wheel file for your version from the [GitHub Releases](https://github.com/h2oai/h2o-sonar/releases) page.
+
+## Install
+
+<Steps>
+  <Step title="Upgrade pip">
+    Ensure you have pip 25.0 or newer before installing H2O Sonar.
+
+    ```bash
+    python -m pip install --upgrade pip
+    ```
+
+    If the above fails, you can also bootstrap pip directly:
+
+    ```bash
+    curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11
+    ```
+  </Step>
+
+  <Step title="Choose your package extras">
+    Select the extras that match your use case.
+
+    <Tabs>
+      <Tab title="Core only">
+        Installs the core library with no explainer or evaluator dependencies. Suitable when you only need the base API or are managing dependencies yourself.
+
+        ```bash
+        pip install h2o_sonar-3.2.1.whl
+        ```
+      </Tab>
+      <Tab title="Predictive explainers">
+        Installs the core library plus all dependencies required for predictive AI explainers (scikit-learn, SHAP, H2O-3, Driverless AI MOJO, numba, etc.).
+
+        ```bash
+        pip install "h2o_sonar-3.2.1.whl[explainers]"
+        ```
+      </Tab>
+      <Tab title="Generative evaluators">
+        Installs the core library plus all dependencies required for generative AI evaluators (transformers, sentence-transformers, OpenAI, Anthropic, LangChain, RAGAS, etc.).
+
+        ```bash
+        pip install "h2o_sonar-3.2.1.whl[evaluators]"
+        ```
+      </Tab>
+      <Tab title="All extras">
+        Installs the core library with both predictive explainer and generative evaluator dependencies.
+
+        ```bash
+        pip install "h2o_sonar-3.2.1.whl[explainers,evaluators]"
+        ```
+      </Tab>
+      <Tab title="GenAI client only">
+        Installs only the generative AI client libraries (OpenAI, Anthropic, Boto3, OpenSearch) without the full evaluator suite. Useful for lightweight integrations that only need to connect to model hosts.
+
+        ```bash
+        pip install "h2o_sonar-3.2.1.whl[genaiclient]"
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Verify installation">
+    Check that the CLI is available and the correct version is installed.
+
+    ```bash
+    h2o-sonar --help
+    ```
+  </Step>
+</Steps>
+
+## GPU acceleration
+
+Certain evaluators — BERTScore, GPTScore, and Perplexity — can run on a CUDA GPU for significantly faster results. CUDA runtime support is provided via PyTorch and ONNX dependencies, which are installed automatically with the `[evaluators]` extra.
+
+To enable GPU acceleration, set the environment variable before running any evaluation:
+
+```bash
+export H2O_SONAR_CFG_DEVICE="gpu"
+```
+
+The default is `auto`, which detects available hardware automatically.
+
+<Warning>
+GPU acceleration is supported on **Linux x86 64-bit only**. It is not available on macOS.
+</Warning>
+
+## Troubleshooting
+
+**Dependency installation fails**
+
+If a dependency fails to install, your pip version may be too old. Upgrade it and retry:
+
+```bash
+python -m pip install --upgrade pip
+pip install "h2o_sonar-3.2.1.whl[explainers,evaluators]"
+```
+
+**`numba` or `llvmlite` errors**
+
+These packages require LLVM and are only supported on Linux x86. If you are on macOS, install without the `[explainers]` extra.
+
+**Java not found (H2O-3 backend)**
+
+Java 1.7 or newer is required only when using the H2O-3 predictive backend. Install it with your system package manager:
+
+```bash
+# Ubuntu / Debian
+sudo apt-get install default-jdk
+```

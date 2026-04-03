@@ -1,0 +1,59 @@
+---
+title: "Feature behavior explainers"
+description: "API reference for PD/ICE, H-statistic, and Summary SHAP explainers."
+---
+
+Feature behavior explainers reveal how individual features influence model predictions across their value ranges, and how features interact with one another.
+
+<AccordionGroup>
+  <Accordion title="Partial Dependence / ICE (PD/ICE)">
+    **Explainer ID:** `h2o_sonar.explainers.pd_ice_explainer.PdIceExplainer`
+
+    Computes Partial Dependence (PD) plots and Individual Conditional Expectation (ICE) curves. PD shows the marginal effect of a feature on predictions averaged over all instances. ICE shows the effect for individual rows, revealing heterogeneous effects.
+
+    - **Scope:** Global
+    - **Output:** PD curves, ICE curves per feature
+    - **Supported models:** All
+
+    ```python
+    explainers=["h2o_sonar.explainers.pd_ice_explainer.PdIceExplainer"]
+    ```
+  </Accordion>
+
+  <Accordion title="Partial Dependence for 2 Features">
+    **Explainer ID:** `h2o_sonar.explainers.pd_2_features_explainer.PdFor2FeaturesExplainer`
+
+    Extends PD to show the joint effect of two features simultaneously as a 2D heatmap. Useful for visualizing non-linear interactions between a pair of variables.
+
+    - **Scope:** Global
+    - **Output:** 2D PD surface plot for feature pairs
+  </Accordion>
+
+  <Accordion title="Friedman's H-statistic">
+    **Explainer ID:** `h2o_sonar.explainers.friedman_h_statistic_explainer.FriedmanHStatisticExplainer`
+
+    Measures pairwise feature interaction strength using Friedman's H-statistic. A high H-statistic between two features indicates the model has learned a strong interaction that cannot be decomposed into the sum of individual effects.
+
+    - **Scope:** Global
+    - **Output:** H-statistic matrix, top interacting feature pairs
+  </Accordion>
+
+  <Accordion title="Summary SHAP">
+    **Explainer ID:** `h2o_sonar.explainers.summary_shap_explainer.SummaryShapleyExplainer`
+
+    Produces a SHAP summary plot combining feature importance with feature effects. Each dot represents a single data instance, colored by feature value, showing both magnitude and direction of impact.
+
+    - **Scope:** Global
+    - **Output:** SHAP beeswarm summary plot
+  </Accordion>
+
+  <Accordion title="Residual PD/ICE">
+    **Explainer ID:** `h2o_sonar.explainers.residual_pd_ice_explainer.ResidualPdIceExplainer`
+
+    Computes PD and ICE plots on model residuals rather than predictions. Reveals which features are associated with systematic prediction errors — a key tool for model debugging.
+
+    - **Scope:** Global
+    - **Output:** Residual PD and ICE curves
+    - **Use case:** Identifying where and why a model makes systematic mistakes
+  </Accordion>
+</AccordionGroup>

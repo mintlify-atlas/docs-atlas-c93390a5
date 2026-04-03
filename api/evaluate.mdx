@@ -1,0 +1,370 @@
+---
+title: "evaluate module"
+description: "Public API for running generative AI evaluations — list, run, compare evaluators, and perturb test data."
+---
+
+## Overview
+
+The `h2o_sonar.evaluate` module provides the public API for evaluating large language models (LLMs) and retrieval-augmented generation (RAG) systems. It supports running evaluators, comparing evaluation runs, and perturbing test datasets to stress-test model robustness.
+
+```python
+from h2o_sonar import evaluate
+from h2o_sonar.lib.api.datasets import LlmDataset
+
+dataset = LlmDataset.from_file("data/rag_test_suite.json")
+
+evaluation = evaluate.run_evaluation(
+    dataset=dataset,
+    evaluators=["h2o_sonar.evaluators.answer_relevance.AnswerRelevance"],
+    results_location="./eval_results",
+)
+
+print(evaluation.status)
+```
+
+---
+
+## `run_evaluation()`
+
+Run an evaluation on an LLM or RAG dataset. Evaluators score each row using configured judge models. Runs synchronously by default.
+
+```python
+evaluation = evaluate.run_evaluation(
+    dataset=dataset,
+    models=[rag_model],
+    evaluators=["h2o_sonar.evaluators.faithfulness.Faithfulness"],
+    evaluator_keywords=["rag"],
+    results_location="./results",
+    run_asynchronously=False,
+)
+```
+
+**Returns:** `evaluations.Evaluation`
+
+### Parameters
+
+<ParamField body="dataset" type="LlmDataset | Any" required>
+  The dataset to evaluate. Typically an `LlmDataset` instance containing prompts, contexts, and expected answers.
+</ParamField>
+
+<ParamField body="models" type="list[ExplainableLlmModel | ExplainableRagModel | OpenAiRagModel | Any] | None" default="None">
+  LLM or RAG model instances to evaluate. When `None`, the dataset is expected to contain pre-computed model responses.
+</ParamField>
+
+<ParamField body="evaluators" type="list[str | EvaluatorToRun] | None" default="None">
+  Evaluator IDs or `EvaluatorToRun` instances to run. When `None` or an empty list, all default compatible evaluators are run.
+</ParamField>
+
+<ParamField body="evaluator_keywords" type="list[str] | None" default="None">
+  Filter compatible evaluators by keywords (AND logic). Only used when `evaluators` is `None` or an empty list.
+</ParamField>
+
+<ParamField body="results_location" type="Path | str | dict | None" default="None">
+  Where to store evaluation results. Accepts a filesystem path, a dictionary (in-memory), or a database reference. Defaults to the current working directory.
+</ParamField>
+
+<ParamField body="persistence_type" type="PersistenceType" default="PersistenceType.file_system">
+  Storage backend: `file_system` (default), `in_memory`, or `database`.
+</ParamField>
+
+<ParamField body="run_asynchronously" type="boolean" default="false">
+  When `True`, the evaluation runs in the background and returns immediately. Monitor progress via the JSON report.
+</ParamField>
+
+<ParamField body="progress_callback" type="AbstractProgressCallbackContext | None" default="None">
+  Optional progress callback context for tracking evaluation progress.
+</ParamField>
+
+<ParamField body="logger" type="SonarLogger | None" default="None">
+  Optional custom logger implementing `SonarLogger`. When provided, `log_level` is ignored.
+</ParamField>
+
+<ParamField body="log_level" type="integer" default="logging.WARNING">
+  Log verbosity. Ignored when `logger` is provided.
+</ParamField>
+
+<ParamField body="upload_to" type="str | ConnectionConfig | None" default="None">
+  Connection key or `ConnectionConfig` for uploading the evaluation report to H2O GPT Enterprise.
+</ParamField>
+
+<ParamField body="key" type="str" default='""'>
+  Custom evaluation key. Must be a valid UUID4 string when provided.
+</ParamField>
+
+---
+
+## `list_evaluators()`
+
+List available evaluators, optionally filtered by keywords or a generic filter.
+
+```python
+evaluators = evaluate.list_evaluators(keywords=["rag", "faithfulness"])
+for ev in evaluators:
+    print(ev.id, ev.name)
+```
+
+**Returns:** `list[EvaluatorDescriptor]`
+
+### Parameters
+
+<ParamField body="keywords" type="list[str] | None" default="None">
+  Filter evaluators by keywords (AND logic). Defaults to `[KEYWORD_LLM]` when `None`.
+</ParamField>
+
+<ParamField body="evaluator_filter" type="list[FilterEntry] | None" default="None">
+  Generic forward-compatible filter. See `FilterEntry` for supported search types.
+</ParamField>
+
+<ParamField body="args_as_json_location" type="Path | str | None" default="None">
+  Path to a JSON file providing all arguments. When specified, all other parameters are ignored.
+</ParamField>
+
+<ParamField body="portable" type="boolean" default="false">
+  When `True`, converts non-portable floats (`inf`, `NaN`) and tuples to portable equivalents.
+</ParamField>
+
+---
+
+## `describe_evaluator()`
+
+Return a dictionary describing an evaluator's name and parameters.
+
+```python
+info = evaluate.describe_evaluator(
+    evaluator="h2o_sonar.evaluators.faithfulness.Faithfulness"
+)
+print(info)
+```
+
+**Returns:** `dict`
+
+### Parameters
+
+<ParamField body="evaluator" type="str | Any" required>
+  Evaluator class or evaluator ID string to describe.
+</ParamField>
+
+<ParamField body="portable" type="boolean" default="false">
+  When `True`, converts non-portable floats and tuples to portable equivalents.
+</ParamField>
+
+---
+
+## `get_evaluation()`
+
+Load a previously run evaluation by its key from a results location.
+
+```python
+evaluation = evaluate.get_evaluation(
+    evaluation_key="550e8400-e29b-41d4-a716-446655440000",
+    results_location="./results",
+)
+if evaluation:
+    print(evaluation.status)
+```
+
+**Returns:** `Evaluation | None` — a partially initialized `Evaluation` instance with status, progress, and evaluator results if available, or `None` if not found.
+
+### Parameters
+
+<ParamField body="evaluation_key" type="str" required>
+  UUID4 key identifying the evaluation run.
+</ParamField>
+
+<ParamField body="results_location" type="Path | str | dict | None" default="None">
+  Location where evaluation results are stored.
+</ParamField>
+
+---
+
+## `wait_for_evaluation()`
+
+Actively poll an asynchronous evaluation until it finishes or a timeout is reached.
+
+```python
+evaluation = evaluate.wait_for_evaluation(
+    evaluation_key="550e8400-e29b-41d4-a716-446655440000",
+    results_location="./results",
+    wait_steps=60,
+    wait_step_seconds=5.0,
+)
+```
+
+**Returns:** `Evaluation` — the completed evaluation instance.
+
+<Warning>
+  Raises `RuntimeError` if the evaluation does not finish within `wait_steps * wait_step_seconds` seconds.
+</Warning>
+
+### Parameters
+
+<ParamField body="evaluation_key" type="str" required>
+  UUID4 key of the asynchronous evaluation to wait for.
+</ParamField>
+
+<ParamField body="results_location" type="Path | str | dict | None" default="None">
+  Location where evaluation results are stored.
+</ParamField>
+
+<ParamField body="wait_steps" type="integer" default="10">
+  Maximum number of polling iterations before raising a timeout error.
+</ParamField>
+
+<ParamField body="wait_step_seconds" type="number" default="1">
+  Seconds to sleep between polling attempts.
+</ParamField>
+
+<ParamField body="logger" type="SonarLogger | None" default="None">
+  Optional logger for progress messages during polling.
+</ParamField>
+
+---
+
+## `compare_evaluations()`
+
+Compare two evaluation runs and return a diff of their results. Useful for regression testing or A/B comparison of model versions.
+
+```python
+diff = evaluate.compare_evaluations(
+    baseline_evaluation="baseline-uuid",
+    current_evaluation="current-uuid",
+    results_location="./results",
+    sentence_similarity_threshold=0.9,
+)
+print(diff)
+```
+
+**Returns:** `EvalResultsDiff` — structured diff between the baseline and current evaluations.
+
+### Parameters
+
+<ParamField body="baseline_evaluation" type="Evaluation | str" required>
+  Baseline `Evaluation` instance or evaluation key string.
+</ParamField>
+
+<ParamField body="current_evaluation" type="Evaluation | str" required>
+  Current `Evaluation` instance or evaluation key string to compare against the baseline.
+</ParamField>
+
+<ParamField body="evaluators" type="list[str | EvaluatorToRun] | None" default="None">
+  Evaluators to include in the comparison. When `None` or empty, all evaluators present in both runs are compared.
+</ParamField>
+
+<ParamField body="baseline_llm_model" type="str" default='""'>
+  LLM model name for the baseline, used when comparing models across different provider types with different naming conventions. Both `baseline_llm_model` and `current_llm_model` must be specified together or not at all.
+</ParamField>
+
+<ParamField body="current_llm_model" type="str" default='""'>
+  LLM model name for the current evaluation.
+</ParamField>
+
+<ParamField body="results_location" type="Path | str | dict | None" default="None">
+  Location of stored evaluation results. Defaults to the current working directory.
+</ParamField>
+
+<ParamField body="comparison_method" type="SentenceComparisonMethod" default="SentenceComparisonMethod.COSINE_DISTANCE">
+  Sentence similarity method for comparing textual results:
+  - `EXACT_MATCH` — exact string matching
+  - `COSINE_DISTANCE` — cosine distance of sentence embeddings (default)
+  - `BERT_SCORE` — BERTScore contextual embedding similarity
+</ParamField>
+
+<ParamField body="sentence_similarity_threshold" type="number" default="0.9">
+  Similarity threshold above which two sentences are considered equivalent. Range `[0, 1]`.
+</ParamField>
+
+---
+
+## `perturb()`
+
+Apply one or more perturbators to a string, test case, test suite, or dataset. Used to stress-test model robustness by systematically introducing variations in the input.
+
+```python
+perturbed = evaluate.perturb(
+    content="What is the capital of France?",
+    perturbators=["h2o_sonar.perturbators.typo.TypoPerturbator"],
+)
+print(perturbed)
+```
+
+**Returns:** Same type as `content` (`str`, `RagTestCaseConfig`, `RagTestSuiteConfig`, or `LlmDataset`).
+
+### Parameters
+
+<ParamField body="content" type="str | RagTestCaseConfig | RagTestSuiteConfig | LlmDataset" required>
+  Content to perturb. The return type matches this input type.
+</ParamField>
+
+<ParamField body="perturbators" type="list[str | PerturbatorToRun]" required>
+  List of perturbator IDs or `PerturbatorToRun` instances to apply.
+</ParamField>
+
+<ParamField body="in_place" type="boolean" default="true">
+  Controls whether perturbation modifies the input in place:
+  - For `str`: always returns a new string (immutable).
+  - For `RagTestCaseConfig`: perturbs the prompt in place, or clones and perturbs.
+  - For `RagTestSuiteConfig` / `LlmDataset`: in-place keeps the same row count; out-of-place doubles the rows.
+</ParamField>
+
+<ParamField body="raised_errors" type="list | None" default="None">
+  When `None`, exceptions from individual perturbators are raised immediately. Pass an empty list to collect errors without raising.
+</ParamField>
+
+---
+
+## `list_perturbators()`
+
+List all available perturbators, optionally filtered by keywords.
+
+```python
+perturbators = evaluate.list_perturbators(keywords=["typo"])
+for p in perturbators:
+    print(p.id, p.name)
+```
+
+**Returns:** `list[PerturbatorDescriptor]`
+
+### Parameters
+
+<ParamField body="keywords" type="list[str] | None" default="None">
+  Filter perturbators by keywords (AND logic). When `None`, all registered perturbators are returned.
+</ParamField>
+
+---
+
+## `describe_perturbator()`
+
+Return the descriptor for a specific perturbator.
+
+```python
+descriptor = evaluate.describe_perturbator(
+    perturbator_id="h2o_sonar.perturbators.typo.TypoPerturbator"
+)
+print(descriptor)
+```
+
+**Returns:** `PerturbatorDescriptor | None` — the descriptor, or `None` if not found.
+
+### Parameters
+
+<ParamField body="perturbator_id" type="str" required>
+  ID of the perturbator to describe.
+</ParamField>
+
+---
+
+## `cache_models()`
+
+Download and cache all third-party models required for evaluations (e.g. sentence transformers, BERTScore). Run this once before executing evaluations in offline or restricted-network environments.
+
+```python
+evaluate.cache_models()
+```
+
+**Returns:** `None`
+
+### Parameters
+
+<ParamField body="logger" type="SonarLogger | None" default="None">
+  Optional custom logger. Falls back to `SonarPrintLogger` when `None`.
+</ParamField>

@@ -1,0 +1,408 @@
+---
+title: "interpret module"
+description: "Public API for running predictive AI interpretations — list, register, and run explainers."
+---
+
+## Overview
+
+The `h2o_sonar.interpret` module is the primary entry point for running predictive AI model interpretations. It provides functions to discover available explainers, register custom explainers, execute interpretations, and manage the resulting reports.
+
+```python
+import h2o_sonar.interpret as sonar
+
+interpretation = sonar.run_interpretation(
+    dataset="path/to/dataset.csv",
+    model="path/to/model.zip",
+    target_col="target",
+    results_location="./results",
+)
+
+print(interpretation.result.get_html_report_location())
+```
+
+---
+
+## `run_interpretation()`
+
+Run an interpretation on a predictive model and dataset. By default runs synchronously and stores results to the filesystem.
+
+```python
+from h2o_sonar import interpret
+
+interpretation = interpret.run_interpretation(
+    dataset="data/titanic.csv",
+    model="models/gbm.zip",
+    target_col="survived",
+    explainers=["h2o_sonar.explainers.shap.ShapleyValues"],
+    results_location="./output",
+    results_formats=["text/html", "application/json"],
+)
+```
+
+**Returns:** `interpretations.Interpretation`
+
+### Parameters
+
+<ParamField body="dataset" type="str | Path | ExplainableDataset | ResourceHandle | datatable.Frame | pandas.DataFrame | ExplainableDatasetHandle" required>
+  Dataset source. Accepts a filesystem path to a CSV, `.jay`, or other datatable-supported file; an `ExplainableDataset` instance; a `datatable.Frame`; or a `pandas.DataFrame`.
+</ParamField>
+
+<ParamField body="model" type="str | Path | ExplainableModel | ResourceHandle | ExplainableModelHandle | Any | None" default="None">
+  Single model to interpret. Accepts a filesystem path, an `ExplainableModel` instance, or a third-party model object (e.g. scikit-learn). Use `models` to pass multiple models.
+</ParamField>
+
+<ParamField body="models" type="list[str | Path | ExplainableModel | ResourceHandle | ExplainableModelHandle | Any] | None" default="None">
+  List of models to interpret in a single interpretation run. Mutually complementary with `model`.
+</ParamField>
+
+<ParamField body="target_col" type="str" required>
+  Target column name. Must be a valid column name present in `dataset`.
+</ParamField>
+
+<ParamField body="explainers" type="list[str | ExplainerToRun] | None" default="None">
+  Explainer IDs or `ExplainerToRun` instances to run. When `None` or an empty list, all default compatible explainers are run.
+</ParamField>
+
+<ParamField body="explainer_keywords" type="list[str] | None" default="None">
+  Filter compatible explainers by keywords (AND logic). Only used when `explainers` is `None` or an empty list.
+</ParamField>
+
+<ParamField body="validset" type="str | Path | ExplainableDataset | ResourceHandle | datatable.Frame | pandas.DataFrame | ExplainableDatasetHandle | None" default="None">
+  Optional validation dataset. Accepts the same types as `dataset`.
+</ParamField>
+
+<ParamField body="testset" type="str | Path | ExplainableDataset | ResourceHandle | datatable.Frame | pandas.DataFrame | ExplainableDatasetHandle | None" default="None">
+  Optional test dataset. Accepts the same types as `dataset`.
+</ParamField>
+
+<ParamField body="use_raw_features" type="boolean" default="true">
+  When `True` (default), use original features. When `False`, force the use of transformed features in surrogate models.
+</ParamField>
+
+<ParamField body="used_features" type="list | None" default="None">
+  Explicit list of feature (column) names used by the model. Required when passing a third-party model instance directly, since `ExplainableModel` metadata is not available.
+</ParamField>
+
+<ParamField body="weight_col" type="str" default='""'>
+  Name of the weight column to be used by explainers.
+</ParamField>
+
+<ParamField body="prediction_col" type="str" default='""'>
+  Name of the predictions column. Used for standalone MLI when a third-party model provides pre-computed predictions.
+</ParamField>
+
+<ParamField body="drop_cols" type="list | None" default="None">
+  Column names to exclude from the interpretation.
+</ParamField>
+
+<ParamField body="sample_num_rows" type="integer | None" default="0">
+  Row sampling control:
+  - `0` — do not sample (default)
+  - `None` — auto-sample based on dataset size and available RAM
+  - `> 0` — sample the dataset down to exactly N rows
+</ParamField>
+
+<ParamField body="container" type="str | ExplainerContainer | None" default="None">
+  Explainer container name or instance. When `None`, the default local container is used. Cannot be specified together with `run_asynchronously=True`.
+</ParamField>
+
+<ParamField body="results_location" type="Path | str | dict | None" default="None">
+  Where to store interpretation results. Accepts a filesystem path, a dictionary (in-memory), or a database reference. Defaults to the current working directory when `None`.
+</ParamField>
+
+<ParamField body="results_formats" type="list[str] | None" default="None">
+  MIME types for the output report formats. Defaults to `["text/html", "application/json"]`. Supported values: `MIME_HTML`, `MIME_JSON`, `MIME_PDF`.
+</ParamField>
+
+<ParamField body="persistence_type" type="PersistenceType" default="PersistenceType.file_system">
+  Storage backend: `file_system` (default), `in_memory`, or `database`. Has no effect when `container` is provided.
+</ParamField>
+
+<ParamField body="run_asynchronously" type="boolean" default="false">
+  When `True`, the interpretation runs in a background process and returns immediately. Poll progress via the JSON report.
+</ParamField>
+
+<ParamField body="run_explainers_in_parallel" type="boolean" default="false">
+  When `True`, explainers run concurrently. By default they run sequentially.
+</ParamField>
+
+<ParamField body="upload_to" type="str | ConnectionConfig | None" default="None">
+  Connection key (str) or `ConnectionConfig` for uploading the interpretation report to H2O GPT Enterprise to enable chat-over-report.
+</ParamField>
+
+<ParamField body="key" type="str" default='""'>
+  Custom interpretation key. Must be a valid UUID4 string when provided.
+</ParamField>
+
+---
+
+## `list_explainers()`
+
+List available explainers, optionally filtered by experiment type, scope, model metadata, keywords, or a generic filter.
+
+```python
+explainers = interpret.list_explainers(
+    experiment_types=["binomial"],
+    explanation_scopes=["global"],
+    keywords=["shap"],
+)
+for e in explainers:
+    print(e.id, e.name)
+```
+
+**Returns:** `list[ExplainerDescriptor]`
+
+### Parameters
+
+<ParamField body="experiment_types" type="list[str] | None" default="None">
+  Filter by supported experiment types: `"regression"`, `"binomial"`, or `"multinomial"`.
+</ParamField>
+
+<ParamField body="explanation_scopes" type="list[str] | None" default="None">
+  Filter by supported explanation scopes: `"local"` or `"global"`.
+</ParamField>
+
+<ParamField body="model_meta" type="ExplainableModelMeta | None" default="None">
+  Filter explainers by model metadata.
+</ParamField>
+
+<ParamField body="keywords" type="list[str] | None" default="None">
+  Filter explainers by keywords (AND logic).
+</ParamField>
+
+<ParamField body="explainer_filter" type="list[FilterEntry] | None" default="None">
+  Generic forward-compatible filter. See `FilterEntry` for supported search types.
+</ParamField>
+
+<ParamField body="container" type="str | ExplainerContainer | None" default="None">
+  Explainer container name or instance to query.
+</ParamField>
+
+<ParamField body="args_as_json_location" type="Path | str | None" default="None">
+  Path to a JSON file providing all arguments. When specified, all other parameters are ignored.
+</ParamField>
+
+<ParamField body="portable" type="boolean" default="false">
+  When `True`, converts non-portable floats (`inf`, `NaN`) and tuples to portable equivalents.
+</ParamField>
+
+---
+
+## `register_explainer()`
+
+Register a custom explainer class so it is available in subsequent `run_interpretation()` calls.
+
+```python
+from my_package.explainers import MyCustomExplainer
+
+explainer_id = interpret.register_explainer(
+    explainer_class=MyCustomExplainer,
+    explainer_id="my-custom-explainer",
+)
+```
+
+**Returns:** `str` — the registered explainer ID.
+
+### Parameters
+
+<ParamField body="explainer_class" type="Type[Explainer]" required>
+  The explainer class to register. Must subclass `h2o_sonar.lib.api.explainers.Explainer`.
+</ParamField>
+
+<ParamField body="explainer_id" type="str" default='""'>
+  Optional custom identifier for the explainer. When empty, an ID is derived from the class.
+</ParamField>
+
+<ParamField body="container" type="str | ExplainerContainer | None" default="None">
+  Explainer container to register into. Uses the default container when `None`.
+</ParamField>
+
+---
+
+## `unregister_explainer()`
+
+Remove a previously registered explainer from the container.
+
+```python
+removed_id = interpret.unregister_explainer(explainer_id="my-custom-explainer")
+```
+
+**Returns:** `str` — the ID of the removed explainer, or `""` if no explainer was found.
+
+### Parameters
+
+<ParamField body="explainer_id" type="str" required>
+  ID of the explainer to unregister.
+</ParamField>
+
+<ParamField body="container" type="str | ExplainerContainer | None" default="None">
+  Explainer container to unregister from. Uses the default container when `None`.
+</ParamField>
+
+---
+
+## `describe_explainer()`
+
+Return a dictionary describing an explainer's name and parameters.
+
+```python
+info = interpret.describe_explainer(explainer="h2o_sonar.explainers.shap.ShapleyValues")
+print(info)
+```
+
+**Returns:** `dict`
+
+### Parameters
+
+<ParamField body="explainer" type="Type[Explainer] | str" required>
+  Explainer class or explainer ID string to describe.
+</ParamField>
+
+<ParamField body="portable" type="boolean" default="false">
+  When `True`, converts non-portable floats and tuples to portable equivalents.
+</ParamField>
+
+---
+
+## `list_interpretations()`
+
+List interpretation keys stored in a given results location.
+
+```python
+keys = interpret.list_interpretations(results_location="./output")
+for key in keys:
+    print(key)
+```
+
+**Returns:** `list[str]` — interpretation keys found in the given location.
+
+### Parameters
+
+<ParamField body="results_location" type="str | Path | dict" required>
+  Location where interpretations were stored. Accepts a filesystem path, a dictionary (in-memory store), or a database reference.
+</ParamField>
+
+<ParamField body="persistence_type" type="PersistenceType" default="PersistenceType.file_system">
+  Storage backend type. Has no effect when `container` is provided.
+</ParamField>
+
+<ParamField body="container" type="str | ExplainerContainer | None" default="None">
+  Explainer container to query. Uses the default container when `None`.
+</ParamField>
+
+<ParamField body="log_level" type="integer" default="logging.WARNING">
+  Log level for container and explainer output.
+</ParamField>
+
+---
+
+## `upload_interpretation()`
+
+Upload an interpretation report to H2O GPT Enterprise (h2oGPTe) to enable chat-over-report.
+
+```python
+collection_id, collection_url = interpret.upload_interpretation(
+    interpretation_result=interpretation,
+    connection="my-h2ogpte-connection",
+    collection_name="Titanic Model Report",
+)
+print(collection_url)
+```
+
+**Returns:** `tuple[str, str]` — `(collection_id, collection_url)` in h2oGPT Enterprise.
+
+### Parameters
+
+<ParamField body="interpretation_result" type="Interpretation | InterpretationResult | str | Path" required>
+  The interpretation to upload. Accepts an `Interpretation` or `InterpretationResult` instance, or a filesystem path (string or `Path`) to a report file.
+</ParamField>
+
+<ParamField body="connection" type="str | ConnectionConfig | None" required>
+  Connection key (string referencing an entry in the H2O Sonar config) or a `ConnectionConfig` instance for the h2oGPTe server.
+</ParamField>
+
+<ParamField body="collection_name" type="str" default='""'>
+  Human-readable name for the created collection in h2oGPTe.
+</ParamField>
+
+---
+
+## `add_config_item()`
+
+Add a configuration item (connection or license) to the H2O Sonar configuration. When `h2o_sonar_config_path` is provided the change is persisted to disk; otherwise the in-memory singleton is modified.
+
+```python
+import json
+from h2o_sonar import interpret, config
+
+interpret.add_config_item(
+    config_type=config.ConfigItemType.CONNECTION.name,
+    config_value=json.dumps({
+        "connection_type": "H2O_GPT_E",
+        "name": "My h2oGPTe",
+        "description": "Production h2oGPTe instance",
+        "server_url": "https://gpte.example.com",
+        "token": "my-api-token",
+        "token_use_type": "API_KEY",
+    }),
+    h2o_sonar_config_path="~/.h2o_sonar/config.toml",
+    encryption_key="my-encryption-key",
+)
+```
+
+### Parameters
+
+<ParamField body="config_type" type="str" required>
+  Configuration item type. Valid values: `"CONNECTION"`, `"LICENSE"`. See `config.ConfigItemType`.
+</ParamField>
+
+<ParamField body="config_value" type="dict | str" required>
+  Configuration item as a dictionary or a JSON string. The value must **not** be pre-encrypted.
+</ParamField>
+
+<ParamField body="h2o_sonar_config_path" type="Path | str | None" default="None">
+  Path to the H2O Sonar configuration file. When `None`, modifies only the in-memory singleton and does not write to disk.
+</ParamField>
+
+<ParamField body="encryption_key" type="str" default='""'>
+  Encryption key for protecting sensitive fields on disk. Falls back to the `H2O_SONAR_ENCRYPTION_KEY` environment variable when empty.
+</ParamField>
+
+---
+
+## `get_config()`
+
+Return the current H2O Sonar configuration as a dictionary.
+
+```python
+cfg = interpret.get_config(h2o_sonar_config_path="~/.h2o_sonar/config.toml")
+print(cfg)
+```
+
+**Returns:** `dict` — full configuration with sensitive fields decrypted (when an encryption key is available).
+
+### Parameters
+
+<ParamField body="h2o_sonar_config_path" type="Path | str | None" default="None">
+  Path to the configuration file to read. When `None`, returns the in-memory singleton configuration.
+</ParamField>
+
+<ParamField body="encryption_key" type="str" default='""'>
+  Encryption key for decrypting sensitive fields. Falls back to the `H2O_SONAR_ENCRYPTION_KEY` environment variable when empty.
+</ParamField>
+
+---
+
+## `do_gc()`
+
+Free system resources held by H2O Sonar: shuts down the async container process pool, runs Python's garbage collector, and clears temporary files.
+
+```python
+interpret.do_gc()
+```
+
+Call this when you are done with a batch of interpretations and want to reclaim memory and process pool resources immediately, rather than waiting for the Python runtime to clean up.
+
+<Note>
+  The async process pool is automatically re-initialized the next time an asynchronous interpretation is started.
+</Note>

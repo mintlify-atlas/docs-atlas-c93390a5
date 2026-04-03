@@ -1,0 +1,46 @@
+---
+title: "Introduction"
+description: "H2O Sonar is a Python library for AI model risk management across predictive and generative systems."
+keywords: ["h2o sonar", "explainability", "predictive ai", "generative ai", "model risk management", "mrm"]
+---
+
+**H2O Sonar** is a Python library for AI model risk management (MRM) across predictive and generative systems. It provides explainers and evaluators that validate models, detect bias, assess fairness and privacy, and generate audit documentation. Built for regulated industries, H2O Sonar enables risk, compliance, and validation teams to quantify model risk, meet regulatory requirements, and maintain robust governance throughout the model lifecycle.
+
+## Key numbers
+
+| Capability | Count |
+|---|---|
+| Predictive AI explainers | **18** |
+| Generative AI evaluators | **44** |
+| Curated eval prompts | **1,000,000+** |
+
+## Two pillars
+
+H2O Sonar is organized around two main capabilities:
+
+**Predictive AI** — Explain and validate [H2O Driverless AI](https://h2o.ai/h2o-driverless-ai), [H2O-3](https://docs.h2o.ai/h2o/latest-stable/h2o-docs/index.html), and [scikit-learn](https://scikit-learn.org/stable/) models. Techniques include feature importance (SHAP, Morris SA), partial dependence, fairness analysis (Disparate Impact Analysis), model validity testing (adversarial similarity, drift detection, calibration), and surrogate decision trees.
+
+**Generative AI** — Evaluate RAG systems and LLMs hosted on h2oGPTe, OpenAI, Anthropic Claude, Amazon Bedrock, Azure OpenAI, ollama, and more. Techniques cover faithfulness, hallucination detection, context precision and recall, privacy (PII leakage), fairness, toxicity, summarization quality, and classification.
+
+<Note>
+H2O Sonar is the engine behind [H2O Eval Studio](https://h2o.ai/platform/enterprise-h2ogpte/eval-studio/) and [H2O Driverless AI](https://h2o.ai/h2o-driverless-ai). If you use either product, you are already running H2O Sonar under the hood.
+</Note>
+
+## Platform and license
+
+| Property | Value |
+|---|---|
+| License | Apache-2.0 |
+| Supported OS | Linux x86 64-bit |
+| Python version | 3.11 |
+
+## Get started
+
+<CardGroup cols={2}>
+  <Card title="Quickstart: Predictive AI" icon="chart-bar" href="/quickstart-predictive">
+    Explain a scikit-learn model with 18 built-in explainers. Covers Python API and CLI workflows.
+  </Card>
+  <Card title="Quickstart: Generative AI" icon="robot" href="/quickstart-generative">
+    Evaluate a RAG system with 44 built-in evaluators. Covers h2oGPTe connection, test suites, and HTML reports.
+  </Card>
+</CardGroup>

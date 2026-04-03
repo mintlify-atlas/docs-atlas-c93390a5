@@ -1,0 +1,129 @@
+---
+title: "Quickstart: Generative AI"
+description: "Evaluate a RAG system or LLM with H2O Sonar using h2oGPTe, a test suite, and built-in evaluators."
+keywords: ["generative", "evaluators", "rag", "llm", "h2ogpte", "evaluation", "quickstart"]
+---
+
+H2O Sonar evaluates RAG systems and standalone LLMs hosted on h2oGPTe, OpenAI, Anthropic Claude, Amazon Bedrock, Azure OpenAI, ollama, and more. This guide walks through evaluating an h2oGPTe RAG system using the Python API.
+
+## Python API
+
+<Steps>
+  <Step title="Install with the evaluators extra">
+    Download the wheel from [GitHub Releases](https://github.com/h2oai/h2o-sonar/releases), then install with generative evaluator dependencies included.
+
+    ```bash
+    pip install "h2o_sonar-3.2.1.whl[evaluators]"
+    ```
+  </Step>
+
+  <Step title="Configure the model host">
+    Create a `ConnectionConfig` describing the LLM or RAG host you want to evaluate. The example below connects to an h2oGPTe instance using an API key.
+
+    ```python
+    import os
+    from h2o_sonar import config as h2o_sonar_config
+
+    connection = h2o_sonar_config.ConnectionConfig(
+        name="h2oGPTe Public",
+        description="Connection to h2oGPTe Public instance",
+        connection_type=h2o_sonar_config.ConnectionConfigType.H2O_GPT_E.name,
+        server_url="https://h2ogpte.h2o.ai",
+        token=os.environ["H2O_GPTE_API_KEY"],
+        token_use_type=h2o_sonar_config.TokenUseType.API_KEY.name,
+    )
+    ```
+
+    Export your API key before running the script:
+
+    ```bash
+    export H2O_GPTE_API_KEY="your-api-key-here"
+    ```
+  </Step>
+
+  <Step title="Load a test suite">
+    A test suite is a JSON file containing the RAG corpus, prompts, and expected answers. Load it with `RagTestSuiteConfig`.
+
+    ```python
+    from h2o_sonar.utils import testing
+
+    test_suite = testing.RagTestSuiteConfig.load_from_json("test-suite.json")
+    print(f"Loaded {len(test_suite.test_cases)} test cases")
+    ```
+
+    The distribution ships a ready-to-use test suite under `examples/generative-py-hello-world-example/test-suite.json` alongside a sample corpus (`corpus-h2o-ai.txt`).
+  </Step>
+
+  <Step title="Build the test lab">
+    The test lab resolves the test suite against the live model host — it uploads the corpus, creates RAG collections, and collects actual answers, durations, and costs.
+
+    ```python
+    from h2o_sonar.lib.api import models
+
+    test_lab = testing.RagTestLab.from_rag_test_suite(
+        rag_connection=connection,
+        rag_test_suite=test_suite,
+        rag_model_type=models.ExplainableModelType.h2ogpte,
+        llm_model_names=["auto"],
+    )
+
+    # upload corpus and create RAG collections / knowledge bases
+    test_lab.build()
+
+    # collect actual answers from the model host
+    test_lab.complete_dataset(parallelize=False)
+    ```
+  </Step>
+
+  <Step title="Run evaluation">
+    Pass the completed test lab dataset, the models to evaluate, and the evaluators you want to run to `evaluate.run_evaluation()`.
+
+    ```python
+    from h2o_sonar import evaluate
+    from h2o_sonar.evaluators import rag_groundedness_evaluator
+
+    evaluation = evaluate.run_evaluation(
+        dataset=test_lab.dataset,
+        models=test_lab.evaluated_models.values(),
+        evaluators=[
+            rag_groundedness_evaluator.RagGroundednessEvaluator.evaluator_id()
+        ],
+        results_location="results",
+    )
+    ```
+  </Step>
+
+  <Step title="Access the HTML report">
+    Check whether all evaluators succeeded and print the path to the HTML report.
+
+    ```python
+    if evaluation.is_evaluator_successful():
+        print(f"HTML report: file://{evaluation.result.get_html_report_location()}")
+    else:
+        print(f"Failed evaluators: {evaluation.get_failed_evaluator_ids()}")
+    ```
+
+    Open the report in any browser:
+
+    ```bash
+    <YOUR BROWSER> results/h2o-sonar.html
+    ```
+  </Step>
+</Steps>
+
+## Hello world example
+
+The distribution ships a complete runnable example under `examples/generative-py-hello-world-example/`. It uses the h2oGPTe public instance, a sample H2O.ai corpus, and the Groundedness evaluator.
+
+```bash
+cd examples/generative-py-hello-world-example
+./install-example.sh
+export H2O_GPTE_API_KEY="your-api-key-here"
+./run-example.sh
+```
+
+The Python entry point is `run-example.py` — read it alongside this guide for a self-contained reference implementation.
+
+<Tip>
+Use the **evaluations comparator** to run the same test suite against multiple models and get automated best-model recommendations. The comparator performs multi-objective optimization, matches models on shared prompts and metrics, and exports stakeholder-ready HTML and JSON reports. Call `evaluate.run_evaluation()` with a list of models covering all candidates you want to compare.
+</Tip>

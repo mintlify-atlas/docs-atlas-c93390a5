@@ -1,0 +1,326 @@
+---
+title: "Running interpretations"
+description: "Complete reference for interpret.run_interpretation() — parameters, code examples, and result access patterns."
+keywords: ["run_interpretation", "interpretation", "explainers", "scikit-learn", "h2o-sonar"]
+---
+
+The `interpret.run_interpretation()` function is the primary entry point for explaining a predictive model. It accepts a dataset and a model, runs the selected explainers, and returns an `Interpretation` object containing structured results and a rendered HTML/JSON/PDF report.
+
+```python
+from h2o_sonar import interpret
+
+interpretation = interpret.run_interpretation(
+    dataset=dataset_path,
+    model=model,
+    used_features=list(X.columns),
+    target_col=target_column,
+    results_location=results_path,
+)
+```
+
+## Parameters
+
+<ParamField path="body.dataset" type="string | Path | DataFrame | datatable.Frame" required>
+  The dataset to explain. Accepts:
+  - A file path string or `pathlib.Path` to a CSV or `.jay` file.
+  - A `pandas.DataFrame` or `datatable.Frame` loaded in memory.
+  - An `ExplainableDataset` instance.
+
+  The dataset should include the target column.
+</ParamField>
+
+<ParamField path="body.target_col" type="string" required>
+  Name of the target column in the dataset. Must exactly match a column name in the dataset.
+</ParamField>
+
+<ParamField path="body.model" type="object | string | Path">
+  The model to interpret. Accepts:
+  - A scikit-learn estimator instance (fitted).
+  - A path string or `pathlib.Path` to a Driverless AI MOJO file.
+  - An `ExplainableModel` instance wrapping an H2O-3 model.
+  - A REST scorer URL string for Driverless AI REST models.
+
+  Mutually exclusive with `models`. Use `model` when interpreting a single model.
+</ParamField>
+
+<ParamField path="body.models" type="list">
+  A list of models to interpret together. Accepts the same types as `model`. Use `models` when comparing multiple models in a single interpretation run. Mutually exclusive with `model`.
+</ParamField>
+
+<ParamField path="body.explainers" type="list[string]">
+  A list of explainer IDs to run. When `None` or an empty list, all default compatible explainers are run automatically.
+
+  Example: `["DtSurrogateExplainer", "DiaExplainer"]`
+
+  Use `interpret.list_explainers()` to retrieve valid explainer IDs.
+</ParamField>
+
+<ParamField path="body.explainer_keywords" type="list[string]">
+  Filter which explainers run by keyword. Only compatible explainers matching **all** provided keywords are run. This parameter is only used when `explainers` is `None` or empty.
+
+  Common keywords: `"fairness"`, `"default"`, `"feature_importance"`.
+</ParamField>
+
+<ParamField path="body.validset" type="string | Path | DataFrame | datatable.Frame">
+  Optional validation dataset. Passed to explainers that support drift detection, backtesting, or holdout evaluation.
+</ParamField>
+
+<ParamField path="body.testset" type="string | Path | DataFrame | datatable.Frame">
+  Optional test dataset. Passed to explainers that support out-of-sample performance evaluation.
+</ParamField>
+
+<ParamField path="body.used_features" type="list[string]">
+  Column names in the dataset that are used as input features by the model. Required when passing a raw model instance (not an `ExplainableModel`) because the model's feature metadata is not otherwise available.
+</ParamField>
+
+<ParamField path="body.weight_col" type="string" default='""'>
+  Name of the sample weight column in the dataset. When provided, explainers that support weighting will apply these weights during computation.
+</ParamField>
+
+<ParamField path="body.drop_cols" type="list[string]">
+  Column names to exclude from the interpretation. These columns are dropped before any explainer runs.
+</ParamField>
+
+<ParamField path="body.sample_num_rows" type="integer" default="0">
+  Controls dataset sampling before running explainers:
+  - `0` — do not sample; use the full dataset.
+  - `> 0` — sample the dataset down to this many rows.
+  - `None` — automatically choose a sample size based on dataset size and available RAM.
+</ParamField>
+
+<ParamField path="body.results_location" type="string | Path">
+  Directory where interpretation results (HTML report, JSON, PDF) are written. Defaults to the current working directory when `None`.
+</ParamField>
+
+<ParamField path="body.results_formats" type="list[string]" default='["text/html", "application/json"]'>
+  MIME types of output formats to generate. Supported values:
+
+  - `"text/html"` — interactive HTML report (default).
+  - `"application/json"` — machine-readable JSON (default).
+  - `"application/pdf"` — PDF report (automatically added when `upload_to` is set).
+</ParamField>
+
+<ParamField path="body.run_asynchronously" type="boolean" default="false">
+  When `True`, the interpretation is submitted and the function returns immediately with a handle. The explainers run in a background process pool. Poll the result using `get_finished_explainer_ids()`.
+</ParamField>
+
+<ParamField path="body.run_explainers_in_parallel" type="boolean" default="false">
+  When `True`, all selected explainers run concurrently using a process pool. Can reduce wall-clock time for interpretations with many explainers, but increases peak memory usage.
+</ParamField>
+
+<ParamField path="body.upload_to" type="string | ConnectionConfig">
+  Upload the finished interpretation report to H2O GPT Enterprise (h2oGPTe) to enable conversational querying of the report. Accepts a connection key string (matching a configured connection in `h2o_sonar_config`) or a `ConnectionConfig` instance.
+
+  When set, a PDF report is automatically generated alongside the HTML and JSON outputs.
+</ParamField>
+
+---
+
+## Workflow
+
+<Steps>
+
+<Step title="Prepare dataset and model">
+
+Load your dataset and fit your model. Pass the file path (or DataFrame) and the fitted model instance directly to `run_interpretation()`.
+
+```python
+import pandas
+from sklearn import ensemble
+
+dataset_path = "data/credit.csv"
+target_column = "DEFAULT"
+
+dataset = pandas.read_csv(dataset_path)
+X = dataset.drop(target_column, axis=1)
+y = dataset[target_column]
+
+model = ensemble.GradientBoostingClassifier(learning_rate=0.1)
+model.fit(X, y)
+```
+
+</Step>
+
+<Step title="Run interpretation">
+
+Call `run_interpretation()` with the dataset path, fitted model, feature names, and target column.
+
+```python
+from h2o_sonar import interpret
+
+interpretation = interpret.run_interpretation(
+    dataset=dataset_path,
+    model=model,
+    used_features=list(X.columns),
+    target_col=target_column,
+    results_location="results/",
+)
+
+print(interpretation)
+```
+
+<Note>
+  Pass `used_features` whenever you provide a raw model instance. This tells H2O Sonar which columns are model inputs vs. metadata columns.
+</Note>
+
+</Step>
+
+<Step title="Run specific explainers">
+
+Pass a list of explainer IDs to the `explainers` parameter to run only the explainers you need.
+
+```python
+interpretation = interpret.run_interpretation(
+    dataset=dataset_path,
+    model=model,
+    used_features=list(X.columns),
+    target_col=target_column,
+    results_location="results/",
+    explainers=[
+        "h2o_sonar.explainers.dt_surrogate_explainer.DecisionTreeSurrogateExplainer",
+        "h2o_sonar.explainers.dia_explainer.DiaExplainer",
+        "h2o_sonar.explainers.pd_ice_explainer.PdIceExplainer",
+    ],
+)
+```
+
+Use `interpret.list_explainers()` to discover valid IDs:
+
+```python
+for e in interpret.list_explainers():
+    print(e.id)
+```
+
+</Step>
+
+<Step title="Run all explainers filtered by keyword">
+
+To run all compatible explainers that match a specific concern, pass a keyword filter instead of explicit IDs. Leave `explainers` unset (or `None`).
+
+```python
+interpretation = interpret.run_interpretation(
+    dataset=dataset_path,
+    model=model,
+    used_features=list(X.columns),
+    target_col=target_column,
+    results_location="results/",
+    explainer_keywords=["fairness"],
+)
+```
+
+</Step>
+
+<Step title="Access results">
+
+Use the returned `Interpretation` object to retrieve individual explainer results.
+
+```python
+# list explainer IDs that completed successfully
+finished = interpretation.get_finished_explainer_ids()
+print("Finished:", finished)
+
+# list explainer IDs that failed
+failed = interpretation.get_failed_explainer_ids()
+print("Failed:", failed)
+
+# get the result for the first finished explainer
+explanation = interpretation.get_explainer_result(finished[0])
+
+# show a summary of the explanation
+print(explanation.summary())
+
+# access explanation data for a specific feature and category
+print(explanation.data(feature_name="EDUCATION", category="disparity"))
+
+# render a plot for a feature (returns a matplotlib figure or saves to file)
+explanation.plot(feature_name="EDUCATION")
+
+# view the explainer's log output
+print(explanation.log(path="results/"))
+
+# export all explanation artifacts to a ZIP archive
+explanation.zip(file_path="results/explanation.zip")
+```
+
+</Step>
+
+<Step title="Upload report to h2oGPTe">
+
+Set `upload_to` to push the finished report to H2O GPT Enterprise so you can ask questions about it in natural language.
+
+```python
+from h2o_sonar import config as h2o_sonar_config
+
+connection = h2o_sonar_config.ConnectionConfig(
+    connection_type=h2o_sonar_config.ConnectionConfigType.H2O_GPT_E.name,
+    name="h2oGPTe production",
+    server_url="https://h2ogpte.h2o.ai/",
+    token="YOUR_API_TOKEN_HERE",
+    token_use_type=h2o_sonar_config.TokenUseType.API_KEY.name,
+)
+
+interpretation = interpret.run_interpretation(
+    dataset=dataset_path,
+    model=model,
+    used_features=list(X.columns),
+    target_col=target_column,
+    results_location="results/",
+    upload_to=connection,
+)
+
+# the URL of the h2oGPTe collection created from the report
+print(interpretation.result.upload_url)
+```
+
+<Tip>
+  When `upload_to` is set, a PDF report is automatically generated and uploaded alongside the HTML and JSON outputs. You do not need to add `"application/pdf"` to `results_formats` manually.
+</Tip>
+
+</Step>
+
+</Steps>
+
+---
+
+## Asynchronous execution
+
+Set `run_asynchronously=True` to submit the interpretation without blocking. The function returns immediately; explainers run in a background process pool.
+
+```python
+interpretation = interpret.run_interpretation(
+    dataset=dataset_path,
+    model=model,
+    used_features=list(X.columns),
+    target_col=target_column,
+    results_location="results/",
+    run_asynchronously=True,
+)
+
+# poll until all explainers complete
+import time
+while len(interpretation.get_finished_explainer_ids()) + \
+      len(interpretation.get_failed_explainer_ids()) < len(interpretation.get_explainer_ids()):
+    time.sleep(5)
+    print("Waiting...")
+
+print("Done:", interpretation.get_finished_explainer_ids())
+```
+
+<Warning>
+  You cannot pass a `container` argument when `run_asynchronously=True`. H2O Sonar manages the async container internally.
+</Warning>
+
+## Parallel explainer execution
+
+Set `run_explainers_in_parallel=True` to run all selected explainers concurrently. This reduces total wall-clock time but requires more RAM because multiple explainers load the model and dataset simultaneously.
+
+```python
+interpretation = interpret.run_interpretation(
+    dataset=dataset_path,
+    model=model,
+    used_features=list(X.columns),
+    target_col=target_column,
+    results_location="results/",
+    run_explainers_in_parallel=True,
+)
+```

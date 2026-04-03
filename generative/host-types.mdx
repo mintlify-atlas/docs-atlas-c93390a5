@@ -1,0 +1,320 @@
+---
+title: "LLM and RAG host types"
+description: "All supported LLM and RAG host types in H2O Sonar, with connection configuration examples for each."
+keywords: ["host types", "LLM", "RAG", "ConnectionConfig", "OpenAI", "h2oGPTe", "Amazon Bedrock", "Anthropic", "Azure", "ollama"]
+---
+
+H2O Sonar can evaluate LLMs and RAG systems hosted by a wide range of services. Use `ConnectionConfig` to configure each host before running an evaluation.
+
+## Token security
+
+The `token` and `password` fields in `ConnectionConfig` are automatically encrypted at rest using AES encryption. Set the `H2O_SONAR_ENCRYPTION_KEY` environment variable to use a custom encryption key:
+
+```bash
+export H2O_SONAR_ENCRYPTION_KEY="your-32-character-secret-key-here"
+```
+
+<Warning>
+  Never hard-code API keys or tokens in source code. Load them from environment variables or a secrets manager at runtime.
+</Warning>
+
+```python
+import os
+from h2o_sonar import config as h2o_sonar_config
+
+token = os.environ["MY_API_TOKEN"]
+
+model_host = h2o_sonar_config.ConnectionConfig(
+    connection_type=h2o_sonar_config.ConnectionConfigType.OPENAI_CHAT.name,
+    name="OpenAI",
+    description="OpenAI Chat API.",
+    server_url="https://api.openai.com/v1/",
+    token=token,
+    token_use_type=h2o_sonar_config.TokenUseType.API_KEY.name,
+)
+```
+
+## `TokenUseType` values
+
+| Value | Description |
+|-------|-------------|
+| `API_KEY` | Static API key issued by the service. |
+| `ACCESS_TOKEN` | Short-lived personal access token. |
+| `REFRESH_TOKEN` | Long-lived refresh token (used with Keycloak or H2O token provider). |
+| `SECRET` | Client secret for client credentials flow. |
+
+---
+
+<Tabs>
+
+  <Tab title="RAG hosts">
+
+    H2O Sonar can evaluate full RAG pipelines—including retrieval and generation—for the following hosts.
+
+    <AccordionGroup>
+
+      <Accordion title="Amazon Bedrock (RAG)">
+        Evaluate RAG pipelines hosted on Amazon Bedrock Knowledge Bases.
+
+        ```python
+        from h2o_sonar import config as h2o_sonar_config
+
+        model_host = h2o_sonar_config.ConnectionConfig(
+            connection_type=h2o_sonar_config.ConnectionConfigType.AMAZON_BEDROCK.name,
+            name="Amazon Bedrock RAG",
+            description="Amazon Bedrock Knowledge Base RAG host.",
+            server_url="https://bedrock-agent-runtime.us-east-1.amazonaws.com/",
+            token=os.environ["AWS_ACCESS_KEY_ID"],
+            token_use_type=h2o_sonar_config.TokenUseType.API_KEY.name,
+            extra_params={
+                "aws_secret_access_key": os.environ["AWS_SECRET_ACCESS_KEY"],
+                "aws_region": "us-east-1",
+            },
+        )
+        ```
+      </Accordion>
+
+      <Accordion title="h2oGPTe">
+        Evaluate RAG pipelines hosted on H2O GPT Enterprise, including collection-based knowledge bases.
+
+        ```python
+        from h2o_sonar import config as h2o_sonar_config
+
+        model_host = h2o_sonar_config.ConnectionConfig(
+            connection_type=h2o_sonar_config.ConnectionConfigType.H2O_GPT_E.name,
+            name="H2O GPT Enterprise",
+            description="H2O GPT Enterprise RAG host.",
+            server_url="https://h2ogpte.h2o.ai/",
+            token=os.environ["H2OGPTE_API_TOKEN"],
+            token_use_type=h2o_sonar_config.TokenUseType.API_KEY.name,
+        )
+        ```
+
+        List available LLM models on the host:
+
+        ```python
+        from h2o_sonar.utils import genai
+
+        llm_models = genai.H2oGpteRagClient(model_host).list_llm_model_names()
+        ```
+      </Accordion>
+
+      <Accordion title="OpenAI Assistants with File Search Tool">
+        Evaluate RAG pipelines built with OpenAI Assistants using the File Search Tool.
+
+        ```python
+        from h2o_sonar import config as h2o_sonar_config
+
+        model_host = h2o_sonar_config.ConnectionConfig(
+            connection_type=h2o_sonar_config.ConnectionConfigType.OPENAI_RAG.name,
+            name="OpenAI Assistants RAG",
+            description="OpenAI Assistants API with File Search Tool.",
+            server_url="https://api.openai.com/v1/",
+            token=os.environ["OPENAI_API_KEY"],
+            token_use_type=h2o_sonar_config.TokenUseType.API_KEY.name,
+        )
+        ```
+      </Accordion>
+
+    </AccordionGroup>
+
+  </Tab>
+
+  <Tab title="LLM hosts">
+
+    H2O Sonar can evaluate standalone LLMs (without a retrieval component) on the following hosts.
+
+    <AccordionGroup>
+
+      <Accordion title="Amazon Bedrock (LLM)">
+        Evaluate LLMs hosted on Amazon Bedrock (e.g., Claude, Llama, Titan).
+
+        ```python
+        from h2o_sonar import config as h2o_sonar_config
+
+        model_host = h2o_sonar_config.ConnectionConfig(
+            connection_type=h2o_sonar_config.ConnectionConfigType.AMAZON_BEDROCK.name,
+            name="Amazon Bedrock LLM",
+            description="Amazon Bedrock LLM host.",
+            server_url="https://bedrock-runtime.us-east-1.amazonaws.com/",
+            token=os.environ["AWS_ACCESS_KEY_ID"],
+            token_use_type=h2o_sonar_config.TokenUseType.API_KEY.name,
+            extra_params={
+                "aws_secret_access_key": os.environ["AWS_SECRET_ACCESS_KEY"],
+                "aws_region": "us-east-1",
+            },
+        )
+        ```
+      </Accordion>
+
+      <Accordion title="Anthropic Claude Chat">
+        Evaluate Anthropic Claude models via the Anthropic Chat API.
+
+        ```python
+        from h2o_sonar import config as h2o_sonar_config
+
+        model_host = h2o_sonar_config.ConnectionConfig(
+            connection_type=h2o_sonar_config.ConnectionConfigType.ANTHROPIC_CHAT.name,
+            name="Anthropic Claude",
+            description="Anthropic Claude Chat API.",
+            server_url="https://api.anthropic.com/",
+            token=os.environ["ANTHROPIC_API_KEY"],
+            token_use_type=h2o_sonar_config.TokenUseType.API_KEY.name,
+        )
+        ```
+      </Accordion>
+
+      <Accordion title="h2oGPT">
+        Evaluate open-source LLMs hosted on h2oGPT.
+
+        ```python
+        from h2o_sonar import config as h2o_sonar_config
+
+        model_host = h2o_sonar_config.ConnectionConfig(
+            connection_type=h2o_sonar_config.ConnectionConfigType.H2O_GPT.name,
+            name="h2oGPT",
+            description="h2oGPT open-source LLM host.",
+            server_url="https://your-h2ogpt-instance.h2o.ai/",
+            token=os.environ["H2OGPT_API_TOKEN"],
+            token_use_type=h2o_sonar_config.TokenUseType.API_KEY.name,
+        )
+        ```
+      </Accordion>
+
+      <Accordion title="h2oGPTe (LLM)">
+        Evaluate LLMs via H2O GPT Enterprise without RAG retrieval.
+
+        ```python
+        from h2o_sonar import config as h2o_sonar_config
+
+        model_host = h2o_sonar_config.ConnectionConfig(
+            connection_type=h2o_sonar_config.ConnectionConfigType.H2O_GPT_E.name,
+            name="H2O GPT Enterprise LLM",
+            description="H2O GPT Enterprise LLM-only evaluation.",
+            server_url="https://h2ogpte.h2o.ai/",
+            token=os.environ["H2OGPTE_API_TOKEN"],
+            token_use_type=h2o_sonar_config.TokenUseType.API_KEY.name,
+        )
+        ```
+      </Accordion>
+
+      <Accordion title="H2O LLMOps">
+        Evaluate models deployed through H2O LLMOps / MLOps.
+
+        ```python
+        from h2o_sonar import config as h2o_sonar_config
+
+        model_host = h2o_sonar_config.ConnectionConfig(
+            connection_type=h2o_sonar_config.ConnectionConfigType.H2O_LLM_OPS.name,
+            name="H2O LLMOps",
+            description="H2O LLMOps deployed model.",
+            server_url="https://your-llmops-instance.h2o.ai/",
+            token=os.environ["H2O_LLMOPS_API_TOKEN"],
+            token_use_type=h2o_sonar_config.TokenUseType.API_KEY.name,
+        )
+        ```
+      </Accordion>
+
+      <Accordion title="Microsoft Azure OpenAI Chat">
+        Evaluate OpenAI models hosted on Microsoft Azure.
+
+        ```python
+        from h2o_sonar import config as h2o_sonar_config
+
+        model_host = h2o_sonar_config.ConnectionConfig(
+            connection_type=h2o_sonar_config.ConnectionConfigType.AZURE_OPENAI_CHAT.name,
+            name="Azure OpenAI Chat",
+            description="Microsoft Azure OpenAI Chat API.",
+            server_url="https://YOUR_RESOURCE.openai.azure.com/",
+            token=os.environ["AZURE_OPENAI_API_KEY"],
+            token_use_type=h2o_sonar_config.TokenUseType.API_KEY.name,
+            extra_params={
+                "api_version": "2024-02-01",
+            },
+        )
+        ```
+      </Accordion>
+
+      <Accordion title="ollama">
+        Evaluate locally hosted models via [ollama](https://ollama.com/).
+
+        ```python
+        from h2o_sonar import config as h2o_sonar_config
+
+        model_host = h2o_sonar_config.ConnectionConfig(
+            connection_type=h2o_sonar_config.ConnectionConfigType.OLLAMA.name,
+            name="ollama",
+            description="Local ollama LLM host.",
+            server_url="http://localhost:11434/",
+            token="",
+            token_use_type=h2o_sonar_config.TokenUseType.API_KEY.name,
+        )
+        ```
+
+        <Note>
+          ollama does not require an API key. Leave `token` as an empty string.
+        </Note>
+      </Accordion>
+
+      <Accordion title="OpenAI Chat">
+        Evaluate OpenAI models (GPT-4o, GPT-4, GPT-3.5, etc.) via the OpenAI Chat API.
+
+        ```python
+        from h2o_sonar import config as h2o_sonar_config
+
+        model_host = h2o_sonar_config.ConnectionConfig(
+            connection_type=h2o_sonar_config.ConnectionConfigType.OPENAI_CHAT.name,
+            name="OpenAI Chat",
+            description="OpenAI Chat API.",
+            server_url="https://api.openai.com/v1/",
+            token=os.environ["OPENAI_API_KEY"],
+            token_use_type=h2o_sonar_config.TokenUseType.API_KEY.name,
+        )
+        ```
+      </Accordion>
+
+      <Accordion title="OpenAI Chat API Compatible Hosts">
+        Evaluate any service that exposes an OpenAI Chat-compatible API (e.g., LM Studio, vLLM, Together AI, Groq).
+
+        ```python
+        from h2o_sonar import config as h2o_sonar_config
+
+        model_host = h2o_sonar_config.ConnectionConfig(
+            connection_type=h2o_sonar_config.ConnectionConfigType.OPENAI_CHAT.name,
+            name="vLLM",
+            description="OpenAI-compatible vLLM endpoint.",
+            server_url="http://localhost:8000/v1/",
+            token=os.environ.get("VLLM_API_KEY", "not-required"),
+            token_use_type=h2o_sonar_config.TokenUseType.API_KEY.name,
+        )
+        ```
+
+        <Note>
+          Set `server_url` to your compatible host's base URL. The API key requirement depends on the individual service.
+        </Note>
+      </Accordion>
+
+    </AccordionGroup>
+
+  </Tab>
+
+</Tabs>
+
+## Persisting connection configurations
+
+`ConnectionConfig` can be serialized to and from a JSON dictionary. Sensitive fields (`token`, `password`) are encrypted automatically:
+
+```python
+import json
+from h2o_sonar import config as h2o_sonar_config
+
+# serialize (tokens are AES-encrypted by default)
+config_dict = model_host.to_dict(encrypt=True)
+with open("connection.json", "w") as f:
+    json.dump(config_dict, f)
+
+# deserialize (tokens are decrypted using H2O_SONAR_ENCRYPTION_KEY)
+with open("connection.json") as f:
+    config_dict = json.load(f)
+model_host = h2o_sonar_config.ConnectionConfig.from_dict(config_dict)
+```

@@ -1,0 +1,257 @@
+---
+title: "Running evaluations"
+description: "How to run LLM and RAG evaluations with H2O Sonar, including async execution, result access, and evaluation comparison."
+keywords: ["evaluation", "run_evaluation", "RAG", "LLM", "h2o sonar", "test suite", "test lab"]
+---
+
+`evaluate.run_evaluation()` is the primary entry point for running generative AI evaluations. It accepts a dataset, a list of models to evaluate, and a list of evaluators to run, and returns an `Evaluation` object containing results and the path to the HTML report.
+
+## Parameters
+
+<ParamField body="dataset" type="LlmDataset" required>
+  The evaluation dataset. Typically built from a `RagTestLab` using `test_lab.dataset`, or constructed directly as an `LlmDataset`.
+</ParamField>
+
+<ParamField body="models" type="list[ExplainableLlmModel | ExplainableRagModel]">
+  List of LLM or RAG models to evaluate. These correspond to the models compared on the evaluation leaderboard. Use `test_lab.evaluated_models.values()` when working with a test lab.
+</ParamField>
+
+<ParamField body="evaluators" type="list[str | EvaluatorToRun]">
+  Evaluator IDs to run, or `EvaluatorToRun` instances with custom evaluator parameters. When `None` or empty, all default compatible evaluators are run.
+</ParamField>
+
+<ParamField body="evaluator_keywords" type="list[str]">
+  Run all compatible evaluators that match the given keywords (AND logic). Used only when `evaluators` is `None` or empty.
+</ParamField>
+
+<ParamField body="results_location" type="str | Path | dict">
+  Path to the directory where evaluation results are saved. Defaults to the current working directory. Pass a `dict` for in-memory storage.
+</ParamField>
+
+<ParamField body="run_asynchronously" type="bool" default="false">
+  Set to `True` to start the evaluation in the background. Use `evaluate.get_evaluation()` or `evaluate.wait_for_evaluation()` to retrieve results.
+</ParamField>
+
+<ParamField body="upload_to" type="str | ConnectionConfig">
+  Upload the evaluation report to an h2oGPTe instance so you can chat with the report after evaluation completes.
+</ParamField>
+
+<ParamField body="key" type="str">
+  Custom evaluation key. Must be a valid UUID4 string. Auto-generated when not provided.
+</ParamField>
+
+## Complete evaluation workflow
+
+<Steps>
+
+  <Step title="Configure the model host connection">
+    Create a `ConnectionConfig` for the LLM or RAG host you want to evaluate.
+
+    ```python
+    from h2o_sonar import config as h2o_sonar_config
+
+    model_host = h2o_sonar_config.ConnectionConfig(
+        connection_type=h2o_sonar_config.ConnectionConfigType.H2O_GPT_E.name,
+        name="H2O GPT Enterprise",
+        description="H2O GPT Enterprise model host.",
+        server_url="https://h2ogpte.h2o.ai/",
+        token="YOUR_API_TOKEN_HERE",
+        token_use_type=h2o_sonar_config.TokenUseType.API_KEY.name,
+    )
+    ```
+
+    See [LLM and RAG host types](/generative/host-types) for connection configs for all supported hosts.
+  </Step>
+
+  <Step title="Load a test suite">
+    Load a test suite from H2O Sonar JSON format. Test suites contain the RAG corpus, prompts, and expected answers.
+
+    ```python
+    from h2o_sonar.utils import testing
+
+    rag_test_suite = testing.RagTestSuiteConfig.load_from_json(
+        "data/generative/demo_doc_test_suite.json"
+    )
+    ```
+
+    <Tip>
+      The [Evals Library](/generative/evals-library) provides 700+ ready-to-use test suites covering LLM, RAG, and AI agent evaluation scenarios.
+    </Tip>
+  </Step>
+
+  <Step title="Build a test lab">
+    A `RagTestLab` resolves the test suite against the model host, uploads the corpus, creates RAG collections, and collects actual answers from the models.
+
+    ```python
+    from h2o_sonar.lib.api import models
+    from h2o_sonar.utils import testing
+    import pathlib
+
+    llm_models = genai.H2oGpteRagClient(model_host).list_llm_model_names()
+
+    test_lab = testing.RagTestLab.from_rag_test_suite(
+        rag_connection=model_host,
+        rag_test_suite=rag_test_suite,
+        rag_model_type=models.ExplainableModelType.h2ogpte,
+        llm_model_names=llm_models,
+        docs_cache_dir=pathlib.Path("/tmp/docs-cache"),
+    )
+
+    # upload corpus and create RAG collections/knowledge bases
+    test_lab.build()
+
+    # collect actual answers, durations, costs, etc.
+    test_lab.complete_dataset()
+    ```
+  </Step>
+
+  <Step title="Run the evaluation">
+    Pass the completed dataset, models, and evaluator IDs to `run_evaluation()`.
+
+    ```python
+    from h2o_sonar import evaluate
+    from h2o_sonar.evaluators import rag_hallucination_evaluator
+
+    evaluation = evaluate.run_evaluation(
+        dataset=test_lab.dataset,
+        models=list(test_lab.evaluated_models.values()),
+        evaluators=[
+            rag_hallucination_evaluator.RagHallucinationEvaluator().evaluator_id(),
+        ],
+        results_location="/tmp/eval-results",
+    )
+    ```
+  </Step>
+
+  <Step title="Access the results">
+    The returned `Evaluation` object contains the HTML report location and evaluation key.
+
+    ```python
+    # open the HTML report in a browser
+    print(f"HTML report: file://{evaluation.result.get_html_report_location()}")
+
+    # evaluation key for later retrieval
+    print(f"Evaluation key: {evaluation.key}")
+
+    # list evaluators that finished successfully
+    print(evaluation.get_finished_evaluator_ids())
+    ```
+  </Step>
+
+</Steps>
+
+## Asynchronous evaluation
+
+Run the evaluation in the background and poll for results:
+
+```python
+from h2o_sonar import evaluate
+
+# start in background
+evaluation = evaluate.run_evaluation(
+    dataset=test_lab.dataset,
+    models=list(test_lab.evaluated_models.values()),
+    evaluators=[evaluator_id],
+    results_location="/tmp/eval-results",
+    run_asynchronously=True,
+)
+
+evaluation_key = evaluation.key
+
+# retrieve current status
+evaluation = evaluate.get_evaluation(
+    evaluation_key=evaluation_key,
+    results_location="/tmp/eval-results",
+)
+print(evaluation.status, evaluation.progress)
+
+# block until evaluation finishes (raises RuntimeError on timeout)
+evaluation = evaluate.wait_for_evaluation(
+    evaluation_key=evaluation_key,
+    results_location="/tmp/eval-results",
+    wait_steps=60,
+    wait_step_seconds=10.0,
+)
+```
+
+### `get_evaluation()` parameters
+
+<ParamField body="evaluation_key" type="str" required>
+  The evaluation key returned by `run_evaluation()`.
+</ParamField>
+
+<ParamField body="results_location" type="str | Path | dict">
+  Directory where the evaluation results were stored.
+</ParamField>
+
+### `wait_for_evaluation()` parameters
+
+<ParamField body="evaluation_key" type="str" required>
+  The evaluation key to wait for.
+</ParamField>
+
+<ParamField body="results_location" type="str | Path | dict">
+  Directory where the evaluation results were stored.
+</ParamField>
+
+<ParamField body="wait_steps" type="int" default="10">
+  Maximum number of polling iterations before raising a timeout error.
+</ParamField>
+
+<ParamField body="wait_step_seconds" type="float" default="1">
+  Seconds to wait between polling iterations.
+</ParamField>
+
+## Comparing evaluations
+
+`compare_evaluations()` performs cross-model comparison by intersecting evaluation data from two separate runs. It is the programmatic equivalent of the [Auto Best Model Selection](/generative/evals-library#auto-best-model-selection) report.
+
+```python
+from h2o_sonar import evaluate
+
+diff = evaluate.compare_evaluations(
+    baseline_evaluation=baseline_key,
+    current_evaluation=current_key,
+    results_location="/tmp/eval-results",
+)
+
+print(diff)
+```
+
+### Parameters
+
+<ParamField body="baseline_evaluation" type="Evaluation | str" required>
+  The baseline `Evaluation` object or its key string.
+</ParamField>
+
+<ParamField body="current_evaluation" type="Evaluation | str" required>
+  The current `Evaluation` object or its key string to compare against the baseline.
+</ParamField>
+
+<ParamField body="evaluators" type="list[str | EvaluatorToRun]">
+  Evaluator IDs to include in the comparison. Compares all evaluators in common when `None`.
+</ParamField>
+
+<ParamField body="baseline_llm_model" type="str">
+  LLM model name for filtering baseline models. Required when comparing evaluations across different host types where model names differ between providers.
+</ParamField>
+
+<ParamField body="current_llm_model" type="str">
+  LLM model name for filtering current models.
+</ParamField>
+
+<ParamField body="results_location" type="str | Path | dict">
+  Directory where the evaluation results are stored.
+</ParamField>
+
+<ParamField body="comparison_method" type="SentenceComparisonMethod" default="COSINE_DISTANCE">
+  Method for comparing sentences when matching prompts across evaluations. Options: `EXACT_MATCH`, `COSINE_DISTANCE` (default), `BERT_SCORE`.
+</ParamField>
+
+<ParamField body="sentence_similarity_threshold" type="float" default="0.9">
+  Similarity threshold for determining whether two sentences are considered the same prompt. Applies when `comparison_method` is `COSINE_DISTANCE` or `BERT_SCORE`.
+</ParamField>
+
+<Warning>
+  Both evaluations must share at least one common evaluator and overlapping prompts for the comparison to succeed. `compare_evaluations()` raises `ValueError` if no intersection is found.
+</Warning>

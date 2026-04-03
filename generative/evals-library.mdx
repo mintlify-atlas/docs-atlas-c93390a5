@@ -1,0 +1,100 @@
+---
+title: "Evals library"
+description: "1,000,000+ curated evaluation prompts in 700+ test suites for LLM, RAG, and AI agent evaluation."
+keywords: ["evals library", "test suites", "benchmarks", "MMLU", "ARC", "GSM8K", "perturbation", "h2o sonar"]
+---
+
+The H2O Sonar Evals Library is a curated collection of **1,000,000+ prompts** organized into **700+ test suites** for LLM, RAG, and AI agent evaluation. All suites are ready to use with `evaluate.run_evaluation()` and are provided in the standardized H2O Sonar JSON format.
+
+<Tip>
+  Browse the full online library at the [H2O Sonar Evals Library](https://eval-studio-artifacts.s3.us-east-1.amazonaws.com/h2o-eval-studio-suite-library/index.html).
+</Tip>
+
+## Industry benchmarks
+
+The library includes ready-to-use versions of widely accepted benchmarks:
+
+| Benchmark | Full name | Description |
+|-----------|-----------|-------------|
+| **MMLU** | Massive Multitask Language Understanding | 57-subject knowledge test covering STEM, humanities, social sciences, and more. |
+| **ARC** | AI2 Reasoning Challenge | Grade-school science questions requiring multi-step reasoning. |
+| **CUAD** | Contract Understanding Atticus Dataset | 510 contract types and 19,700+ annotated clauses for legal document comprehension. |
+| **HellaSwag** | — | Commonsense NLI benchmark for evaluating situational reasoning and sentence completion. |
+| **GSM8K** | Grade School Math 8K | 8,500 linguistically diverse grade-school math word problems. |
+
+## Domain coverage
+
+The 700+ test suites span six evaluation domains:
+
+- **Question Answering** — factual retrieval and reading comprehension
+- **Privacy** — PII detection, sensitive data leakage, and encoding guardrails
+- **Fairness** — bias, stereotypes, toxicity, and sexism detection
+- **Security** — prompt injection and adversarial robustness
+- **Summarization** — abstractive and extractive summary quality
+- **Classification** — category and label prediction accuracy
+
+## Standardized format
+
+All test suites use the H2O Sonar JSON format, which encodes the RAG corpus, input prompts, and expected answers in a single file. Load a suite with `RagTestSuiteConfig.load_from_json()`:
+
+```python
+from h2o_sonar.utils import testing
+
+suite = testing.RagTestSuiteConfig.load_from_json("my_suite.json")
+```
+
+Pass the loaded suite directly to `RagTestLab.from_rag_test_suite()` to build an evaluation dataset. See [Running evaluations](/generative/running-evaluations) for the complete workflow.
+
+## Combining, sampling, and perturbing suites
+
+Test suites can be combined, sampled, and perturbed to build targeted evaluation datasets. Use `evaluate.perturb()` to apply one or more perturbators to an entire suite, individual test cases, or raw strings.
+
+**List available perturbators:**
+
+```python
+from h2o_sonar import evaluate
+
+perturbators = evaluate.list_perturbators()
+for p in perturbators:
+    print(p.perturbator_id, "-", p.display_name)
+```
+
+**Perturb a suite in place** — each prompt is replaced by its perturbed version, keeping the total number of test cases the same:
+
+```python
+from h2o_sonar import evaluate
+from h2o_sonar.utils import testing
+
+suite = testing.RagTestSuiteConfig.load_from_json("my_suite.json")
+
+# replace every prompt with a y/z character-swap variant
+perturbed_suite = evaluate.perturb(
+    content=suite,
+    perturbators=["h2o_sonar.utils.perturbations.QwertyPerturbator"],
+    in_place=True,
+)
+```
+
+**Expand a suite** — setting `in_place=False` clones and perturbs each test case, doubling the number of cases so both the original and perturbed prompts are included:
+
+```python
+# suite now contains both original and perturbed test cases (2x rows)
+expanded_suite = evaluate.perturb(
+    content=suite,
+    perturbators=["h2o_sonar.utils.perturbations.WordSwapPerturbator"],
+    in_place=False,
+)
+```
+
+**Perturb a single string:**
+
+```python
+perturbed_prompt = evaluate.perturb(
+    content="What is the capital of France?",
+    perturbators=["h2o_sonar.utils.perturbations.SynonymPerturbator"],
+)
+```
+
+<Note>
+  When `content` is a string, perturbation is always out-of-place because strings are immutable. The `in_place` parameter applies only to `RagTestSuiteConfig` and `LlmDataset` inputs.
+</Note>

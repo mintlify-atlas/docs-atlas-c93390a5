@@ -1,0 +1,74 @@
+---
+title: "Privacy and fairness evaluators"
+description: "API reference for evaluators that detect PII leakage, sensitive data, toxicity, bias, and stereotypes."
+---
+
+Privacy and fairness evaluators protect against harmful or non-compliant model outputs. Use these to meet regulatory requirements (GDPR, CCPA, EU AI Act) and ensure responsible AI deployment.
+
+<AccordionGroup>
+  <Accordion title="PII Leakage">
+    **Evaluator ID:** `h2o_sonar.evaluators.pii_leakage_evaluator.PiiLeakageEvaluator`
+
+    Detects personally identifiable information (PII) in LLM outputs, including names, email addresses, phone numbers, SSNs, and other sensitive identifiers. Critical for RAG systems that index documents containing personal data.
+
+    - **Output:** PII detected flag, PII type and location in output
+    - **Use case:** Compliance with GDPR, CCPA, HIPAA
+  </Accordion>
+
+  <Accordion title="Contact Information">
+    **Evaluator ID:** `h2o_sonar.evaluators.contact_information_byop_evaluator.ContactInformationByopEvaluator`
+
+    Uses an LLM judge to detect whether generated outputs contain contact information (emails, phone numbers, addresses) that should not be exposed.
+  </Accordion>
+
+  <Accordion title="Sensitive Data Leakage">
+    **Evaluator ID:** `h2o_sonar.evaluators.sensitive_data_leakage_evaluator.SensitiveDataLeakageEvaluator`
+
+    Detects leakage of sensitive business data, trade secrets, or confidential information in LLM outputs. Broader than PII — covers proprietary or confidential content.
+
+    - **Use case:** Enterprise RAG systems with confidential document corpora
+  </Accordion>
+
+  <Accordion title="Encoding Guardrail">
+    **Evaluator ID:** `h2o_sonar.evaluators.encoding_guardrail_evaluator.EncodingGuardrailEvaluator`
+
+    Detects attempts to bypass content filters using encoding tricks (Base64, hex encoding, Unicode obfuscation, etc.) in both prompts and outputs.
+
+    - **Use case:** Prompt injection and jailbreak detection
+  </Accordion>
+
+  <Accordion title="Toxicity">
+    **Evaluator ID:** `h2o_sonar.evaluators.toxicity_evaluator.ToxicityEvaluator`
+
+    Scores the toxicity level of generated text using the Detoxify model. Detects hate speech, threats, insults, obscenity, and identity attacks.
+
+    - **Metric range:** 0 to 1 per toxicity category (lower is better)
+    - **Categories:** toxicity, severe_toxicity, obscene, threat, insult, identity_attack
+    - **GPU acceleration:** Supported — set `H2O_SONAR_CFG_DEVICE="gpu"` for faster scoring
+  </Accordion>
+
+  <Accordion title="Fairness Bias">
+    **Evaluator ID:** `h2o_sonar.evaluators.fairness_bias_evaluator.FairnessBiasEvaluator`
+
+    Measures demographic bias in LLM outputs by comparing responses to prompts that differ only in protected attributes (gender, race, religion, etc.).
+
+    - **Output:** Bias score per demographic dimension
+    - **Use case:** Fairness audits, bias mitigation validation
+  </Accordion>
+
+  <Accordion title="Sexism (Judge)">
+    **Evaluator ID:** `h2o_sonar.evaluators.sexism_byop_evaluator.SexismByopEvaluator`
+
+    Uses an LLM judge to detect sexist content or gender-based discrimination in generated outputs.
+  </Accordion>
+
+  <Accordion title="Stereotypes (Judge)">
+    **Evaluator ID:** `h2o_sonar.evaluators.stereotype_byop_evaluator.StereotypeByopEvaluator`
+
+    Uses an LLM judge to identify stereotyping content related to demographic groups, professions, or nationalities in model outputs.
+  </Accordion>
+</AccordionGroup>
+
+<Warning>
+  Privacy evaluators require the `[evaluators]` package extra. PII detection accuracy depends on the types of PII present — always validate on your specific domain before relying on these scores for compliance decisions.
+</Warning>

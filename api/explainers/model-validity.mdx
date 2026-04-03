@@ -1,0 +1,91 @@
+---
+title: "Model validity explainers"
+description: "API reference for adversarial testing, drift detection, calibration, backtesting, and segment performance."
+---
+
+Model validity explainers test whether a model is reliable, stable, and fit for deployment. These are essential for model risk management (MRM) documentation in regulated industries.
+
+<AccordionGroup>
+  <Accordion title="Adversarial Similarity">
+    **Explainer ID:** `h2o_sonar.explainers.adversarial_similarity_explainer.AdversarialSimilarityExplainer`
+
+    Tests whether the training and test datasets are distinguishable from one another. If an adversarial model can separate them, it indicates data leakage, distribution shift, or sampling bias.
+
+    - **Scope:** Global
+    - **Output:** Adversarial AUC score (close to 0.5 is ideal), important distinguishing features
+    - **Requires:** Both training dataset and a test/validation set
+
+    ```python
+    interpretation = interpret.run_interpretation(
+        dataset="train.csv",
+        testset="test.csv",
+        model=model,
+        target_col="target",
+        explainers=["h2o_sonar.explainers.adversarial_similarity_explainer.AdversarialSimilarityExplainer"],
+    )
+    ```
+  </Accordion>
+
+  <Accordion title="Backtesting">
+    **Explainer ID:** `h2o_sonar.explainers.backtesting_explainer.BacktestingExplainer`
+
+    Evaluates model performance on historical time-ordered data by simulating a rolling-window or walk-forward validation strategy. Reveals how model performance degrades over time.
+
+    - **Scope:** Global
+    - **Output:** Performance metrics over time windows, stability chart
+    - **Use case:** Time-series models, credit scoring, fraud detection
+  </Accordion>
+
+  <Accordion title="Calibration Score">
+    **Explainer ID:** `h2o_sonar.explainers.calibration_score_explainer.CalibrationScoreExplainer`
+
+    Measures how well predicted probabilities match observed outcome frequencies. A well-calibrated model predicts 70% probability for events that actually occur 70% of the time.
+
+    - **Scope:** Global
+    - **Output:** Calibration curve, Expected Calibration Error (ECE), reliability diagram
+    - **Supported models:** Binary classification models with probability output
+  </Accordion>
+
+  <Accordion title="Drift Detection">
+    **Explainer ID:** `h2o_sonar.explainers.drift_explainer.DriftDetectionExplainer`
+
+    Detects statistical drift between training data and a reference dataset (e.g., recent production data). Identifies features whose distributions have shifted, which may degrade model performance.
+
+    - **Scope:** Global
+    - **Output:** Drift scores per feature, flagged drifted features, distribution comparison plots
+    - **Requires:** A reference dataset (validset or testset) representing current data distribution
+
+    ```python
+    interpretation = interpret.run_interpretation(
+        dataset="training_data.csv",
+        validset="current_production_data.csv",
+        model=model,
+        target_col="target",
+        explainers=["h2o_sonar.explainers.drift_explainer.DriftDetectionExplainer"],
+    )
+    ```
+  </Accordion>
+
+  <Accordion title="Segment Performance">
+    **Explainer ID:** `h2o_sonar.explainers.segment_performance_explainer.SegmentPerformanceExplainer`
+
+    Evaluates model performance broken down by data segments (subgroups). Identifies whether the model underperforms for specific populations — critical for fairness audits and MRM validation.
+
+    - **Scope:** Global
+    - **Output:** Performance metrics (AUC, accuracy, F1) per segment, worst-performing segments
+    - **Use case:** Demographic subgroup analysis, geographic performance breakdown
+  </Accordion>
+
+  <Accordion title="Size Dependency">
+    **Explainer ID:** `h2o_sonar.explainers.size_dependency_explainer.SizeDependencyExplainer`
+
+    Tests whether model performance is sensitive to training dataset size by evaluating performance at different data fractions. Reveals learning curves and whether the model would benefit from more data.
+
+    - **Scope:** Global
+    - **Output:** Learning curve showing performance vs. training set size
+  </Accordion>
+</AccordionGroup>
+
+<Tip>
+  For a comprehensive MRM validation package, combine Adversarial Similarity, Drift Detection, Calibration Score, and Segment Performance in a single interpretation run by passing all four explainer IDs in the `explainers` list.
+</Tip>

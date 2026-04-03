@@ -1,0 +1,124 @@
+---
+title: "Quickstart: Predictive AI"
+description: "Explain a scikit-learn model with H2O Sonar in minutes using the Python API or the CLI."
+keywords: ["predictive", "explainers", "scikit-learn", "shap", "interpretation", "quickstart"]
+---
+
+H2O Sonar can explain [H2O Driverless AI](https://h2o.ai/h2o-driverless-ai), [H2O-3](https://docs.h2o.ai/h2o/latest-stable/h2o-docs/index.html), and [scikit-learn](https://scikit-learn.org/stable/) predictive models. This guide walks through explaining a scikit-learn classifier using the Python API, then shows the equivalent CLI workflow.
+
+## Python API
+
+<Steps>
+  <Step title="Install with the explainers extra">
+    Download the wheel from [GitHub Releases](https://github.com/h2oai/h2o-sonar/releases), then install with predictive explainer dependencies included.
+
+    ```bash
+    pip install "h2o_sonar-3.2.1.whl[explainers]"
+    ```
+  </Step>
+
+  <Step title="Prepare the dataset">
+    Load your dataset with pandas and split it into features and target.
+
+    ```python
+    import pandas
+
+    dataset = pandas.read_csv(dataset_path)
+    (X, y) = dataset.drop(target_column, axis=1), dataset[target_column]
+    ```
+  </Step>
+
+  <Step title="Train a scikit-learn model">
+    Train any scikit-learn estimator. H2O Sonar works with the fitted model object directly — no special export step is required.
+
+    ```python
+    from sklearn import ensemble
+
+    model = ensemble.GradientBoostingClassifier(learning_rate=0.1)
+    model.fit(X, y)
+    ```
+  </Step>
+
+  <Step title="Run interpretation">
+    Pass the dataset path, the fitted model, the feature column names, the target column, and a results directory to `interpret.run_interpretation()`.
+
+    ```python
+    from h2o_sonar import interpret
+
+    interpretation = interpret.run_interpretation(
+        dataset=dataset_path,
+        model=model,
+        used_features=list(X.columns),
+        target_col=target_column,
+        results_location=results_path,
+    )
+
+    print(interpretation)
+    ```
+  </Step>
+
+  <Step title="Access results">
+    Retrieve explanations from the interpretation result. Each explainer produces a result object with summary, raw data, and plot methods.
+
+    ```python
+    # get the result from the first completed explainer
+    explanation = interpretation.get_explainer_result(
+        interpretation.get_finished_explainer_ids()[0]
+    )
+
+    # show explanation summary
+    print(explanation.summary())
+
+    # show explanation data for a specific feature and category
+    print(explanation.data(feature_name="EDUCATION", category="disparity"))
+
+    # render an explanation plot
+    explanation.plot(feature_name="EDUCATION")
+
+    # show the explainer log
+    print(explanation.log(path=results_path))
+
+    # export all explanation artifacts as a ZIP archive
+    explanation.zip(file_path=archive_path)
+    ```
+  </Step>
+</Steps>
+
+<Note>
+The HTML interpretation report is saved to the directory you specified as `results_location`. Open it in any browser:
+
+```bash
+<YOUR BROWSER> results/h2o-sonar.html
+```
+</Note>
+
+## CLI approach
+
+H2O Sonar ships a command-line interface that runs interpretations without writing any Python code. It is useful for automation, CI pipelines, and quick ad-hoc explanations of MOJO or pickle models.
+
+Check available options:
+
+```sh
+h2o-sonar --help
+```
+
+Run an interpretation against a dataset and model file:
+
+```sh
+h2o-sonar run interpretation \
+  --dataset dataset.csv \
+  --model model.mojo \
+  --target-col SATISFACTION
+```
+
+The hello-world CLI example in the distribution uses a pre-trained scikit-learn credit card default model:
+
+```sh
+h2o-sonar run interpretation \
+  --dataset creditcard.csv \
+  --model creditcard-binomial-sklearn-1.8.0-gbm.pkl \
+  --target-col "default payment next month" \
+  --results-location results
+```
+
+Find the full runnable example under `examples/predictive-cli-hello-world-example/` in the distribution.

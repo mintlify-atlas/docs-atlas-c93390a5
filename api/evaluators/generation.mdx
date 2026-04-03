@@ -1,0 +1,160 @@
+---
+title: "Generation evaluators"
+description: "API reference for evaluators that assess LLM and RAG answer quality, accuracy, and faithfulness."
+---
+
+Generation evaluators measure the quality of text produced by LLMs and RAG systems, covering accuracy, relevancy, faithfulness, and structural correctness.
+
+```python
+from h2o_sonar import evaluate
+
+evaluation = evaluate.run_evaluation(
+    dataset=test_lab.dataset,
+    models=list(test_lab.evaluated_models.values()),
+    evaluators=[
+        "h2o_sonar.evaluators.rag_hallucination_evaluator.RagHallucinationEvaluator",
+        "h2o_sonar.evaluators.rag_faithfulness_evaluator.FaithfulnessEvaluator",
+    ],
+    results_location="./results",
+)
+```
+
+<AccordionGroup>
+  <Accordion title="Answer Accuracy (Semantic Similarity)">
+    **Evaluator ID:** `h2o_sonar.evaluators.answer_accuracy_evaluator.AnswerAccuracyEvaluator`
+
+    Measures semantic similarity between the generated answer and the expected answer using sentence embeddings. Returns a score between 0 and 1.
+  </Accordion>
+
+  <Accordion title="Answer Correctness">
+    **Evaluator ID:** `h2o_sonar.evaluators.rag_answer_correctness_evaluator.AnswerCorrectnessEvaluator`
+
+    Uses an LLM judge to assess whether the generated answer is factually correct relative to the expected answer. Scores reflect factual accuracy.
+  </Accordion>
+
+  <Accordion title="Answer Relevancy">
+    **Evaluator ID:** `h2o_sonar.evaluators.rag_answer_relevancy_evaluator.AnswerRelevancyEvaluator`
+
+    Uses an LLM judge to evaluate whether the answer is relevant to the question asked, regardless of factual correctness.
+  </Accordion>
+
+  <Accordion title="Answer Relevancy (Sentence Similarity)">
+    **Evaluator ID:** `h2o_sonar.evaluators.rag_answer_relevancy_no_judge_evaluator.RagAnswerRelevancyNoJudgeEvaluator`
+
+    Measures answer relevancy using sentence embedding similarity instead of an LLM judge — faster and cheaper for large-scale evaluations.
+  </Accordion>
+
+  <Accordion title="Answer Semantic Similarity">
+    **Evaluator ID:** `h2o_sonar.evaluators.rag_answer_similarity_evaluator.AnswerSemanticSimilarityEvaluator`
+
+    Measures semantic similarity between the generated answer and a reference answer using sentence embeddings. Complements Answer Accuracy by using a different similarity model.
+  </Accordion>
+
+  <Accordion title="Answer Semantic Sentence Similarity">
+    **Evaluator ID:** `h2o_sonar.evaluators.answer_semantic_similarity_per_sentence_evaluator.AnswerSemanticSimilarityPerSentenceEvaluator`
+
+    Computes semantic similarity at the sentence level — comparing individual sentences in the generated answer against corresponding sentences in the expected answer. Useful for long-form answer quality assessment.
+  </Accordion>
+
+  <Accordion title="Faithfulness">
+    **Evaluator ID:** `h2o_sonar.evaluators.rag_faithfulness_evaluator.FaithfulnessEvaluator`
+
+    Measures whether the generated answer is grounded in the retrieved context. A faithful answer only makes claims that are supported by the context documents.
+  </Accordion>
+
+  <Accordion title="Hallucination">
+    **Evaluator ID:** `h2o_sonar.evaluators.rag_hallucination_evaluator.RagHallucinationEvaluator`
+
+    Detects hallucinated content — claims in the answer that contradict or are unsupported by the retrieved context. Returns a hallucination score (higher = more hallucination).
+  </Accordion>
+
+  <Accordion title="Groundedness (Semantic Similarity)">
+    **Evaluator ID:** `h2o_sonar.evaluators.rag_groundedness_evaluator.RagGroundednessEvaluator`
+
+    Assesses how well the answer is grounded in the source context using semantic similarity, without requiring an LLM judge.
+  </Accordion>
+
+  <Accordion title="Fact-Check (Agent-based)">
+    **Evaluator ID:** `h2o_sonar.evaluators.agentic_fact_check_evaluator.FactCheckAgenticEvaluator`
+
+    Uses an agentic fact-checking approach to verify individual claims in the generated answer against external or provided knowledge.
+  </Accordion>
+
+  <Accordion title="JSON Schema">
+    **Evaluator ID:** `h2o_sonar.evaluators.json_schema_evaluator.JSONSchemaEvaluator`
+
+    Validates whether the LLM output conforms to a specified JSON schema. Essential for structured output evaluation in tool-use and function-calling scenarios.
+  </Accordion>
+
+  <Accordion title="Self-Consistency">
+    **Evaluator ID:** `h2o_sonar.evaluators.self_consistency_evaluator.SelfConsistencyEvaluator`
+
+    Measures whether the model produces consistent answers when asked the same question multiple times with different sampling. High consistency indicates more reliable outputs.
+  </Accordion>
+
+  <Accordion title="RAGAS">
+    **Evaluator ID:** `h2o_sonar.evaluators.rag_ragas_evaluator.RagasEvaluator`
+
+    Integrates the RAGAS framework (v0.1.7) for RAG evaluation, providing faithfulness, answer relevancy, context precision, and context recall in a single evaluator.
+  </Accordion>
+
+  <Accordion title="Perplexity">
+    **Evaluator ID:** `h2o_sonar.evaluators.perplexity_evaluator.PerplexityEvaluator`
+
+    Measures how well the language model predicts the generated text using perplexity scoring. Lower perplexity indicates more fluent, natural-sounding output. GPU acceleration supported.
+  </Accordion>
+
+  <Accordion title="Looping Detection">
+    **Evaluator ID:** `h2o_sonar.evaluators.looping_detection_evaluator.LoopingDetectionEvaluator`
+
+    Detects repetitive or looping content in generated text — a common failure mode in LLMs that produces degraded output quality.
+  </Accordion>
+
+  <Accordion title="Questions Drift">
+    **Evaluator ID:** `h2o_sonar.evaluators.questions_drift_evaluator.QuestionsDriftEvaluator`
+
+    Measures semantic drift between the original question and the answer — whether the response stays on topic.
+  </Accordion>
+
+  <Accordion title="Text Matching">
+    **Evaluator ID:** `h2o_sonar.evaluators.rag_tokens_presence_evaluator.RagStrStrEvaluator`
+
+    Checks for the presence of expected tokens or phrases in the generated answer. Useful for validating structured outputs or required content.
+  </Accordion>
+
+  <Accordion title="Machine Translation (GPTScore)">
+    **Evaluator ID:** `h2o_sonar.evaluators.gptscore_machine_translation_evaluator.GptScoreMachineTranslationEvaluator`
+
+    Evaluates machine translation quality using the GPTScore framework, which leverages generative model probabilities as quality signals.
+  </Accordion>
+
+  <Accordion title="Question Answering (GPTScore)">
+    **Evaluator ID:** `h2o_sonar.evaluators.gptscore_question_answering_evaluator.GptScoreQuestionAnsweringEvaluator`
+
+    Evaluates question answering quality using GPTScore — assesses how likely the model is to generate the expected answer given the question.
+  </Accordion>
+
+  <Accordion title="Step Alignment and Completeness">
+    **Evaluator ID:** `h2o_sonar.evaluators.procedure_evaluator.ProcedureEvaluator`
+
+    Evaluates procedural answers (step-by-step instructions) for alignment with expected steps and completeness of coverage.
+  </Accordion>
+
+  <Accordion title="Parameterizable BYOP">
+    **Evaluator ID:** `h2o_sonar.evaluators.parameterizable_byop_evaluator.ParameterizableByopEvaluator`
+
+    A flexible evaluator that accepts a custom prompt template as a parameter, enabling judge-based evaluation of any custom criterion without writing a full evaluator class.
+  </Accordion>
+
+  <Accordion title="Language Mismatch (Judge)">
+    **Evaluator ID:** `h2o_sonar.evaluators.language_mismatch_byop_evaluator.LanguageMismatchByopEvaluator`
+
+    Detects when the generated answer is in a different language than the question — a common failure in multilingual RAG deployments.
+  </Accordion>
+
+  <Accordion title="Agent Sanity Check">
+    **Evaluator ID:** `h2o_sonar.evaluators.agent_sanity_check_evaluator.AgentSanityCheckEvaluator`
+
+    Validates that an AI agent's outputs meet basic sanity criteria — completeness, format compliance, and absence of obvious errors.
+  </Accordion>
+</AccordionGroup>
